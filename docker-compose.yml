@@ -12,31 +12,14 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   web:
-    build:
-      context: .
-    image: hackathon_web
-    command: sh -c "npm install && npx prisma db push && npm run dev"
+    build: .
+    command: npm run dev
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/appdb?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/appdb?schema=public
     depends_on:
       - db
-    volumes:
-      - .:/home/node/app
-  
-  prisma-studio:
-    image: hackathon_web
-    command: sh -c "npm install && npx prisma studio"
-    ports:
-      - "5555:5555"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/appdb?schema=public
-    depends_on:
-      - web
-      - db
-    volumes:
-      - .:/home/node/app
 
 volumes:
   pgdata:
