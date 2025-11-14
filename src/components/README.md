@@ -1,0 +1,2 @@
+# Vlad note
+- to keep nice structure, I like to leave components imported from shadcn unmodified and in the ui directory (their default install dir) and not put anything else in that dir and then my custom components are in files or folders sibling to the ui directory. so under components, but not in ui

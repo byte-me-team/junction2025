@@ -15,6 +15,7 @@ services:
     build:
       context: .
     image: hackathon_web
+    command: sh -c "npm install && npx prisma db push && npm run dev"
     ports:
       - "3000:3000"
     environment:
@@ -23,11 +24,10 @@ services:
       - db
     volumes:
       - .:/home/node/app
-      - node_modules_cache:/home/node/app/node_modules
   
   prisma-studio:
     image: hackathon_web
-    command: npx prisma studio
+    command: sh -c "npm install && npx prisma studio"
     ports:
       - "5555:5555"
     environment:
@@ -35,8 +35,8 @@ services:
     depends_on:
       - web
       - db
+    volumes:
+      - .:/home/node/app
 
 volumes:
   pgdata:
-  node_modules_cache:
-
