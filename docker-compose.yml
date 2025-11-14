@@ -26,8 +26,6 @@ services:
       - node_modules_cache:/home/node/app/node_modules
   
   prisma-studio:
-    build:
-      context: .
     image: hackathon_web
     command: npx prisma studio
     ports:
