@@ -34,25 +34,24 @@ type NavSection = {
 
 const baseSections: NavSection[] = [
   {
-    title: "Overview",
+    title: "Your spaces",
     items: [
-      { title: "Landing", url: "/" },
       { title: "Dashboard", url: "/dashboard" },
+      { title: "Calendar (soon)", url: "#calendar", disabled: true },
     ],
   },
   {
-    title: "Onboarding flow",
+    title: "Suggestions",
     items: [
-      { title: "Basics", url: "/onboarding" },
-      { title: "Preferences", url: "/onboarding/preferences" },
-      { title: "Summary", url: "/onboarding/summary" },
+      { title: "Activity feed", url: "#feed", disabled: true },
+      { title: "Shared plans", url: "#plans", disabled: true },
     ],
   },
   {
-    title: "Planning tools",
+    title: "Care circle",
     items: [
-      { title: "Invite a relative", url: "/dashboard#invite", disabled: true },
-      { title: "Daily reminders", url: "/dashboard#reminders", disabled: true },
+      { title: "Invite a relative", url: "/dashboard#invite" },
+      { title: "Reminders", url: "/dashboard#reminders" },
     ],
   },
 ]

@@ -26,7 +26,6 @@ export const TopBar = () => {
           <p>{user ? user.email : "Guest session"}</p>
           <p>{user ? "Ready for suggestions" : "Start onboarding"}</p>
         </div>
-        <ModeToggle />
         {user ? (
           <Button asChild variant="outline" size="sm">
             <Link href="/auth/sign-out">Sign out</Link>
@@ -36,6 +35,7 @@ export const TopBar = () => {
             <Link href="/auth/sign-in">Sign in</Link>
           </Button>
         )}
+        <ModeToggle />
       </div>
     </header>
   )

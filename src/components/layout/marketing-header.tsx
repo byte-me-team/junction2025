@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "Onboarding", href: "/onboarding" },
   { label: "Dashboard", href: "/dashboard" },
 ];
 
@@ -20,7 +19,7 @@ export const MarketingHeader = () => {
 
   return (
     <header className="border-b border-border/50 bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 py-5">
         <Link href="/" className="text-lg font-semibold">
           Aging with AI
         </Link>
@@ -38,8 +37,7 @@ export const MarketingHeader = () => {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
-          <ModeToggle />
+        <div className="flex items-center gap-3">
           {user ? (
             <Button asChild size="sm" variant="outline">
               <Link href="/dashboard">Open app</Link>
@@ -49,6 +47,7 @@ export const MarketingHeader = () => {
               <Link href="/auth/sign-in">Sign in</Link>
             </Button>
           )}
+          <ModeToggle />
         </div>
       </div>
     </header>
