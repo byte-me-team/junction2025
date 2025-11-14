@@ -9,8 +9,21 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  createdAt     DateTime @default(now())
+  preferences   UserPreferences?
+}
+
+model UserPreferences {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+
+  rawText        String   // "i like to go for walks outside..."
+  normalizedJson Json     // LLM result, structured
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

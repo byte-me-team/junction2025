@@ -26,6 +26,8 @@ services:
       - .:/home/node/app
   
   prisma-studio:
+    build:
+      context: .
     image: hackathon_web
     command: sh -c "npm install && npx prisma studio"
     ports:
