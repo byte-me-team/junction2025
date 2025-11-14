@@ -1,8 +1,6 @@
-FROM node:20-alpine
+FROM node:20
 
-RUN apk add --no-cache openssl
-
-WORKDIR /home/node/app
+WORKDIR /app
 
 COPY package*.json ./
 
@@ -10,9 +8,8 @@ RUN npm install
 
 COPY . .
 
-RUN chown -R node:node /home/node/app
-USER node
-
 RUN npx prisma generate
 
-CMD ["sh", "-c", "npx prisma db push && npm run dev"]
+ENV PORT=3000
+
+CMD ["npm", "run", "dev"]
