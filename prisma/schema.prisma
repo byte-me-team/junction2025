@@ -20,6 +20,8 @@ model User {
   preferences   UserPreferences?
   accounts      Account[]
   sessions      Session[]
+  matchesAsUser1 Match[]          @relation("MatchesAsUser1")
+  matchesAsUser2 Match[]          @relation("MatchesAsUser2")
 }
 
 model UserPreferences {
@@ -27,8 +29,8 @@ model UserPreferences {
   userId         String   @unique
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  rawText        String   // "i like to go for walks outside..."
-  normalizedJson Json     // LLM result, structured
+  rawText        String
+  normalizedJson Json
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -68,4 +70,21 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+
+  user1Id   String
+  user1     User     @relation("MatchesAsUser1", fields: [user1Id], references: [id])
+
+  user2Id   String
+  user2     User     @relation("MatchesAsUser2", fields: [user2Id], references: [id])
+
+  user1Preferences Json
+  user2Preferences Json
+
+  suggestionsJson  Json
+
+  createdAt DateTime @default(now())
 }

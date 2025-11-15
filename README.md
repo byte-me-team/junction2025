@@ -14,6 +14,13 @@ cp .env.example .env
 
 `DATABASE_URL` points to your local Postgres instance (e.g. `localhost`), while `DATABASE_URL_DOCKER` keeps the containers wired to the in-compose `db` service. Update `NEXT_PUBLIC_APP_URL` if you expose the frontend on a different hostname. `NEXTAUTH_URL` should match the public origin (e.g. `http://localhost:3000`) and `NEXTAUTH_SECRET` must be a long random string (generate via `openssl rand -base64 32`).
 
+#### add Featherless.ai api key
+
+to the .env file add (replace ... with actual key):
+```
+FEATHERLESS_API_KEY=...
+```
+
 #### run the dev server
 
 to start the server run:
