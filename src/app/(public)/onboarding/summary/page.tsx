@@ -98,7 +98,7 @@ export default function OnboardingSummaryPage() {
       reset();
       router.push("/dashboard");
     } catch (err) {
-      console.error("Failed to save onboarding", err);
+      console.error("Failed to save profile", err);
       setError("Something went wrong while saving your profile.");
     } finally {
       setIsSubmitting(false);
@@ -235,7 +235,7 @@ export default function OnboardingSummaryPage() {
             disabled={isSubmitting}
             className="shadow-lg shadow-primary/30"
           >
-            {isSubmitting ? "Saving..." : "Finish onboarding"}
+            {isSubmitting ? "Saving..." : "Create profile"}
           </Button>
         </div>
       </section>
