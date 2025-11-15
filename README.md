@@ -286,3 +286,9 @@ Triggered when senior clicks “Interested”.
 - Mobility-aware suggestions (distance + accessibility)  
 - Social circles (suggest activities with friends in the app)  
 - Voice-based onboarding
+- Person of contact (reminded if no response for a while)
+- Group video calls for inmobile people
+
+## TO-DO's
+- daily stretching reminder
+- solo walks/cycling trips suggestions based on weather??
