@@ -18,10 +18,10 @@ model User {
   updatedAt     DateTime          @updatedAt
 
   preferences   UserPreferences?
+  relatives     Relative?
   accounts      Account[]
   sessions      Session[]
-  matchesAsUser1 Match[]          @relation("MatchesAsUser1")
-  matchesAsUser2 Match[]          @relation("MatchesAsUser2")
+  matchesAsUser Match[]          @relation("UserMatches")
   espooSuggestionCache EspooSuggestionCache?
 }
 
@@ -29,12 +29,22 @@ model UserPreferences {
   id             String   @id @default(cuid())
   userId         String   @unique
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  
   rawText        String
   normalizedJson Json
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Relative {
+  id                String @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name              String 
+  rawText           String
+  matchesAsUser Match[]          @relation("RelativeMatches")
 }
 
 model Account {
@@ -76,11 +86,11 @@ model VerificationToken {
 model Match {
   id        String   @id @default(cuid())
 
-  user1Id   String
-  user1     User     @relation("MatchesAsUser1", fields: [user1Id], references: [id])
+  userId    String
+  user      User     @relation("UserMatches", fields: [userId], references: [id])
 
-  user2Id   String
-  user2     User     @relation("MatchesAsUser2", fields: [user2Id], references: [id])
+  relativeId String
+  relative   Relative @relation("RelativeMatches", fields: [relativeId], references: [id])
 
   user1Preferences Json
   user2Preferences Json
