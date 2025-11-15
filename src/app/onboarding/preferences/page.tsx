@@ -1,14 +1,19 @@
 "use client";
 
-import { FormEvent, useEffect } from "react";
+import { FormEvent, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+
 import { useOnboarding } from "@/components/onboarding/onboarding-provider";
 import { Button } from "@/components/ui/button";
-import { TagInput } from "@/components/forms/tag-input";
+import { TagInput, TagInputHandle } from "@/components/forms/tag-input";
 
 export default function OnboardingPreferencesPage() {
   const router = useRouter();
   const { state, updatePreferences } = useOnboarding();
+  const { status } = useSession();
+  const enjoyInputRef = useRef<TagInputHandle>(null);
+  const dislikeInputRef = useRef<TagInputHandle>(null);
 
   useEffect(() => {
     if (!state.basicInfo.email) {
@@ -16,8 +21,16 @@ export default function OnboardingPreferencesPage() {
     }
   }, [state.basicInfo.email, router]);
 
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    enjoyInputRef.current?.commitPending();
+    dislikeInputRef.current?.commitPending();
     router.push("/onboarding/summary");
   };
 
@@ -35,16 +48,18 @@ export default function OnboardingPreferencesPage() {
         </div>
         <form className="space-y-8" onSubmit={handleSubmit}>
           <TagInput
+            ref={enjoyInputRef}
             label="Things you enjoy doing"
             description="One idea per line. Hit Enter to save it."
-            placeholder="Knitting\nLocal markets\nStroll with family"
+            placeholder="Knitting · Local markets · Stroll with family"
             items={state.preferences.enjoyList}
             onChange={(next) => updatePreferences({ enjoyList: next })}
           />
 
           <TagInput
+            ref={dislikeInputRef}
             label="Things you do not like"
-            placeholder="Crowded malls"
+            placeholder="Crowded malls or long queues"
             items={state.preferences.dislikeList}
             onChange={(next) => updatePreferences({ dislikeList: next })}
           />

@@ -22,22 +22,32 @@ import { Input } from "@/components/ui/input"
 type LoginFormProps = {
   className?: string
   email: string
-  error?: string | null
+  password: string
+  emailError?: string | null
+  passwordError?: string | null
+  formError?: string | null
   buttonLabel?: string
   supportingText?: string
   footer?: ReactNode
+  isSubmitting?: boolean
   onEmailChange: (value: string) => void
+  onPasswordChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }
 
 export function LoginForm({
   className,
   email,
-  error,
-  buttonLabel = "Continue",
-  supportingText = "We'll keep this email in localStorage until real auth ships.",
+  password,
+  emailError,
+  passwordError,
+  formError,
+  buttonLabel = "Sign in",
+  supportingText = "Enter your credentials to access the dashboard.",
   footer,
+  isSubmitting,
   onEmailChange,
+  onPasswordChange,
   onSubmit,
 }: LoginFormProps) {
   return (
@@ -46,7 +56,7 @@ export function LoginForm({
         <CardHeader>
           <CardTitle>Sign in to continue</CardTitle>
           <CardDescription>
-            Enter your email so we can simulate a session during the hackathon.
+            Enter your email and password to access your profile.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -65,15 +75,39 @@ export function LoginForm({
                 <FieldDescription
                   className={cn(
                     "text-muted-foreground",
-                    error && "text-destructive"
+                    emailError && "text-destructive"
                   )}
                 >
-                  {error ? error : supportingText}
+                  {emailError ? emailError : supportingText}
                 </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit" className="w-full">
-                  {buttonLabel}
+                <FieldLabel htmlFor="login-password">Password</FieldLabel>
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(event) => onPasswordChange(event.target.value)}
+                  required
+                />
+                <FieldDescription
+                  className={cn(
+                    "text-muted-foreground",
+                    passwordError && "text-destructive"
+                  )}
+                >
+                  {passwordError ?? "At least 8 characters."}
+                </FieldDescription>
+              </Field>
+              <Field>
+                {formError && (
+                  <p className="mb-2 text-sm font-medium text-destructive">
+                    {formError}
+                  </p>
+                )}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Signing in..." : buttonLabel}
                 </Button>
                 {footer}
               </Field>

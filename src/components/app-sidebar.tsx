@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import * as React from "react"
 
-import { useAuth } from "@/components/auth/auth-context"
 import { SearchForm } from "@/components/search-form"
 import {
   Sidebar,
@@ -58,7 +57,8 @@ const baseSections: NavSection[] = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { data: session } = useSession()
+  const user = session?.user
 
   const sections = React.useMemo<NavSection[]>(() => {
     const accountItems: NavItem[] = user
@@ -120,7 +120,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <p className="font-semibold text-foreground">Signed in as</p>
           <p className="text-muted-foreground">{user?.email ?? "Guest"}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            We&apos;ll sync this info with the backend onboarding API soon.
+            Sessions are stored securely via Auth.js and Prisma.
           </p>
         </div>
       </SidebarFooter>
@@ -128,3 +128,4 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   )
 }
+import { useSession } from "next-auth/react"

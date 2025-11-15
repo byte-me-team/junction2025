@@ -23,13 +23,23 @@ type SignupFormProps = {
   className?: string
   name: string
   email: string
-  error?: string | null
+  city: string
+  password: string
+  confirmPassword: string
+  emailError?: string | null
+  cityError?: string | null
+  passwordError?: string | null
+  confirmPasswordError?: string | null
+  formError?: string | null
   buttonLabel?: string
   supportingText?: string
   helperText?: string
   footer?: ReactNode
   onNameChange: (value: string) => void
   onEmailChange: (value: string) => void
+  onCityChange: (value: string) => void
+  onPasswordChange: (value: string) => void
+  onConfirmPasswordChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }
 
@@ -37,15 +47,37 @@ export function SignupForm({
   className,
   name,
   email,
-  error,
+  city,
+  password,
+  confirmPassword,
+  emailError,
+  cityError,
+  passwordError,
+  confirmPasswordError,
+  formError,
   buttonLabel = "Continue",
-  supportingText = "We keep your answers in localStorage until the backend is ready.",
+  supportingText = "We'll store your answers securely when onboarding completes.",
   helperText = "Use whatever name seniors and relatives will recognize.",
   footer,
   onNameChange,
   onEmailChange,
+  onCityChange,
+  onPasswordChange,
+  onConfirmPasswordChange,
   onSubmit,
 }: SignupFormProps) {
+  const cityOptions = [
+    "Helsinki",
+    "Espoo",
+    "Vantaa",
+    "Tampere",
+    "Turku",
+    "Oulu",
+    "Jyväskylä",
+    "Kuopio",
+    "Lahti",
+  ];
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -62,7 +94,7 @@ export function SignupForm({
               <Input
                 id="onboarding-name"
                 type="text"
-                placeholder="Grandma Liisa"
+                placeholder="John Doe"
                 value={name}
                 onChange={(event) => onNameChange(event.target.value)}
               />
@@ -83,13 +115,85 @@ export function SignupForm({
               <FieldDescription
                 className={cn(
                   "text-muted-foreground",
-                  error && "text-destructive"
+                  emailError && "text-destructive"
                 )}
               >
-                {error ?? supportingText}
+                {emailError ?? supportingText}
               </FieldDescription>
             </Field>
             <Field>
+              <FieldLabel htmlFor="onboarding-city">City *</FieldLabel>
+              <select
+                id="onboarding-city"
+                className="w-full rounded-xl border border-border bg-card p-3 text-base"
+                value={city}
+                onChange={(event) => onCityChange(event.target.value)}
+                required
+              >
+                <option value="">Select a city</option>
+                {cityOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <FieldDescription
+                className={cn(
+                  "text-muted-foreground",
+                  cityError && "text-destructive"
+                )}
+              >
+                {cityError ?? "We'll use this to personalize nearby activities."}
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="onboarding-password">Password *</FieldLabel>
+              <Input
+                id="onboarding-password"
+                type="password"
+                placeholder="Create a password"
+                value={password}
+                onChange={(event) => onPasswordChange(event.target.value)}
+                required
+              />
+              <FieldDescription
+                className={cn(
+                  "text-muted-foreground",
+                  passwordError && "text-destructive"
+                )}
+              >
+                {passwordError ?? "Minimum 8 characters."}
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="onboarding-confirm-password">
+                Confirm password
+              </FieldLabel>
+              <Input
+                id="onboarding-confirm-password"
+                type="password"
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChange={(event) =>
+                  onConfirmPasswordChange(event.target.value)
+                }
+                required
+              />
+              <FieldDescription
+                className={cn(
+                  "text-muted-foreground",
+                  confirmPasswordError && "text-destructive"
+                )}
+              >
+                {confirmPasswordError ?? "Helps avoid typos."}
+              </FieldDescription>
+            </Field>
+            <Field>
+              {formError && (
+                <p className="mb-2 text-sm font-medium text-destructive">
+                  {formError}
+                </p>
+              )}
               <Button type="submit" className="w-full">
                 {buttonLabel}
               </Button>

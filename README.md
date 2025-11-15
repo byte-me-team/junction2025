@@ -12,7 +12,7 @@ Copy `.env.example` to `.env` and adjust the values as needed:
 cp .env.example .env
 ```
 
-`DATABASE_URL` points to your local Postgres instance (e.g. `localhost`), while `DATABASE_URL_DOCKER` keeps the containers wired to the in-compose `db` service. Update `NEXT_PUBLIC_APP_URL` if you expose the frontend on a different hostname.
+`DATABASE_URL` points to your local Postgres instance (e.g. `localhost`), while `DATABASE_URL_DOCKER` keeps the containers wired to the in-compose `db` service. Update `NEXT_PUBLIC_APP_URL` if you expose the frontend on a different hostname. `NEXTAUTH_URL` should match the public origin (e.g. `http://localhost:3000`) and `NEXTAUTH_SECRET` must be a long random string (generate via `openssl rand -base64 32`).
 
 #### run the dev server
 
@@ -22,6 +22,18 @@ docker compose up web
 ```
 
 This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, and starts the Next.js dev server on port 3000.
+
+#### authentication
+
+Real authentication is now powered by Auth.js + Prisma. The onboarding form creates a user record (with a bcrypt-hashed password) and the API route `/api/auth/[...nextauth]` manages sessions. To test sign-in manually you can also call the credentials endpoint via `curl`:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"supersafepassword","name":"Demo"}'
+```
+
+Then log in with the UI or via `curl --request POST http://localhost:3000/api/auth/callback/credentials ...` if needed.
 
 ### create an encryption key
 

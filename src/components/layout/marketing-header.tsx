@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { useAuth } from "@/components/auth/auth-context";
 import { ModeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -15,7 +15,8 @@ const navLinks = [
 
 export const MarketingHeader = () => {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   return (
     <header className="border-b border-border/50 bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40">
@@ -38,7 +39,7 @@ export const MarketingHeader = () => {
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          {user ? (
+          {isAuthenticated ? (
             <Button asChild size="sm" variant="outline">
               <Link href="/dashboard">Open app</Link>
             </Button>
