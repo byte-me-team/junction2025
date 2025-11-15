@@ -135,7 +135,7 @@ export default function RelativesPage() {
 
             <div className="mt-10">
               <Button asChild variant="secondary">
-                <Link href="/dashboard">Back to Dashboard</Link>
+                <Link href="/invite">Invite Loved Ones</Link>
               </Button>
             </div>
           </section>

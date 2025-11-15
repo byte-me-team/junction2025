@@ -15,6 +15,7 @@ import {
   LogOut,
   NotebookPen,
   Sparkles,
+  Sprout,
   UserPlus,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -66,7 +67,7 @@ const baseSections: NavSection[] = [
     items: [
       { title: "Invite a relative", url: "/invite", icon: UserPlus },
       { title: "Loved Ones", url: "/relative", icon: HeartHandshake },
-      { title: "Reminders", url: "/reminders", icon: Bell },
+      { title: "Health", url: "/health", icon: Sprout },
     ],
   },
 ]

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { useSession } from "next-auth/react"
 import { Sparkles } from "lucide-react"
+import { ProfileButton } from "../ui/profile"
 
 export const TopBar = () => {
   const { data: session } = useSession()
@@ -42,6 +43,7 @@ export const TopBar = () => {
           </Button>
         )}
         <ModeToggle />
+        <ProfileButton />
       </div>
     </header>
   )
