@@ -28,7 +28,15 @@ to start the server run:
 docker compose up web
 ```
 
-This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, and starts the Next.js dev server on port 3000.
+This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, syncs the database, ingests the next few days of Espoo events, and starts the Next.js dev server on port 3000.
+
+You can refresh the event catalog manually at any time (set `ESPOO_EVENTS_WINDOW_DAYS` to control the lookahead window and `ESPOO_EVENTS_LIMIT` to cap the fetch size):
+
+```bash
+npm run ingest:events
+```
+
+Events are retained indefinitely for now. If the table grows too large, run a manual cleanup query in Prisma Studio.
 
 #### authentication
 
@@ -63,6 +71,18 @@ docker compose up studio
 You can also run `docker compose up` without arguments to bring up `db`, `web`, and `studio` simultaneously. Once studio is running, open [http://localhost:5555](http://localhost:5555) to explore the database.
 
 test the python api by opening localhost:8000 with the corresponding path.
+
+#### event-based suggestions
+
+The Espoo ingest script stores upcoming events in the `Event` table. Hit `/api/espoo-suggestions` with a user email to have Featherless rank those events against the user’s normalized preferences:
+
+```bash
+curl -X POST http://localhost:3000/api/espoo-suggestions \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com"}'
+```
+
+Responses include the model’s recommended event IDs, titles, and reasons so you can plug them into the dashboard UI.
 
 ### Development
 
