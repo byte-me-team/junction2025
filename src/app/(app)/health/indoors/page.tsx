@@ -1,504 +1,361 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { useRequireAuth } from "@/lib/use-require-auth";
+import { useState } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-/**
- * Simple helper: parse "HH:MM" into milliseconds until that next occurrence.
- */
-function msUntilNextTime(hhmm: string) {
-  const [hhStr, mmStr] = hhmm.split(":");
-  const hh = Number(hhStr);
-  const mm = Number(mmStr);
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(hh, mm, 0, 0);
-
-  if (target <= now) {
-    // tomorrow
-    target.setDate(target.getDate() + 1);
-  }
-  return target.getTime() - now.getTime();
-}
-
-type ReminderSettings = {
-  enabled: boolean;
-  times: string[]; // "HH:MM"
+type Pose = {
+  id: number;
+  english_name: string;
+  sanskrit_name_adapted?: string;
+  difficulty_level: string;
+  url_png: string;
+  pose_benefits?: string;
 };
 
-const STORAGE_KEY = "stretch_reminders_v1";
-
-type Step = {
+type YogaSuggestion = {
   title: string;
-  instruction: string;
-  durationSec?: number; // optional duration; if set, stepper will count down
+  difficulty: string;
+  poses: Pose[];
 };
 
-const ROUTINES: { id: string; label: string; steps: Step[] }[] = [
-  {
-    id: "general",
-    label: "Gentle Full-Body Stretch (General)",
-    steps: [
-      { title: "Sit tall / breathe", instruction: "Sit or stand tall. Inhale slowly for 4s, exhale for 6s. Repeat 3 times.", durationSec: 30 },
-      { title: "Neck turns", instruction: "Slowly turn head to the left, hold 5s, then to the right. Repeat twice each side.", durationSec: 30 },
-      { title: "Shoulder rolls", instruction: "Roll shoulders backward 8 times, then forward 8 times.", durationSec: 30 },
-      { title: "Seated side stretch", instruction: "Seated: raise one arm and lean to opposite side gently. Hold 15s each side.", durationSec: 30 },
-      { title: "Ankle circles", instruction: "Lift one foot and circle the ankle 10x each direction. Repeat with other foot.", durationSec: 30 },
-    ],
-  },
-  {
-    id: "lowerBack",
-    label: "Lower Back Mobility Routine",
-    steps: [
-      { title: "Pelvic tilts", instruction: "Lie on your back with knees bent. Gently tilt your pelvis to flatten lower back to the floor, then release. Repeat 8–10 times.", durationSec: 45 },
-      { title: "Knee-to-chest (single)", instruction: "Bring one knee to chest, hold 15s, switch legs. Repeat twice each side.", durationSec: 40 },
-      { title: "Seated cat-cow", instruction: "Sit tall, arch the back slightly on inhale (cow), round on exhale (cat). Repeat 8–10 times.", durationSec: 40 },
-    ],
-  },
-  {
-    id: "knees",
-    label: "Knee-Friendly Mobility",
-    steps: [
-      { title: "Heel slides", instruction: "Lie on back and slowly slide heel toward buttock, then straighten. 10 reps each leg.", durationSec: 45 },
-      { title: "Quadriceps set", instruction: "Sitting or lying, tighten front thigh muscle and hold 5s. 10 reps each leg.", durationSec: 30 },
-      { title: "Seated calf raises", instruction: "Sit and lift heels while toes stay on floor. 12–15 reps.", durationSec: 30 },
-    ],
-  },
+const commonSymptoms = [
+  "Neck tension",
+  "Lower back pain",
+  "Stiff shoulders",
+  "Tired legs",
+  "Headache",
 ];
 
-export default function RemindersPage() {
-  // Reminders settings
-  const [settings, setSettings] = useState<ReminderSettings>({ enabled: false, times: ["09:00"] });
+const goals = ["Calming down", "Improve mobility", "Decrease pain", "Boost energy", "Increase flexibility"];
 
-  // runtime scheduling refs
-  const timersRef = useRef<number[]>([]);
+export default function YogaRoutinesPage() {
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [allPoses, setAllPoses] = useState<Pose[]>([]);
+  const [poseSearch, setPoseSearch] = useState("");
 
-  const { user, isLoading } = useRequireAuth();
+  const [preferences, setPreferences] = useState("");
+  const [mood, setMood] = useState(3);
+  const [symptoms, setSymptoms] = useState<string[]>([]);
+  const [customSymptom, setCustomSymptom] = useState("");
+  const [goal, setGoal] = useState(goals[0]);
 
-  // notifications permission
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default");
+  const [suggestion, setSuggestion] = useState<YogaSuggestion | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // UI: routine selection and stepper
-  const [selectedRoutineId, setSelectedRoutineId] = useState<string>(ROUTINES[0].id);
-  const routine = ROUTINES.find((r) => r.id === selectedRoutineId)!;
+  const openManualPoseModal = async () => {
+    setManualModalOpen(true);
 
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [stepRemaining, setStepRemaining] = useState<number | null>(null);
-  const stepTimerRef = useRef<number | null>(null);
+    if (allPoses.length === 0) {
+      const res = await fetch("/api/poses");
+      const data = await res.json();
+      setAllPoses(data.poses ?? data); 
+    }
+  };
 
-  // status message
-  const [statusMessage, setStatusMessage] = useState("");
+  const addPoseToSuggestion = (pose: Pose) => {
+    if (!suggestion) return;
 
-  if (isLoading) {
-    return (
-      <main className="px-6 py-10">
-        <p className="text-sm text-muted-foreground">Loading health center…</p>
-      </main>
+    if (suggestion.poses.some((p) => p.id === pose.id)) return;
+
+    setSuggestion({
+      ...suggestion,
+      poses: [...suggestion.poses, pose],
+    });
+
+    setManualModalOpen(false);
+  };
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/yoga-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          preferences: { interests: [{ name: preferences }] },
+          mood,
+          symptoms,
+          goal,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) setSuggestion(data.suggestions.sessions[0]);
+      else setError(data.error ?? "Unknown error");
+    } catch (err) {
+      setError((err as Error).message);
+      setManualModalOpen(true);
+
+      if (allPoses.length === 0) {
+        const r = await fetch("/api/poses");
+        const d = await r.json();
+        setAllPoses(d.poses ?? d);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSymptom = (symptom: string) => {
+    setSymptoms((prev) =>
+      prev.includes(symptom) ? prev.filter((s) => s !== symptom) : [...prev, symptom]
     );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  // load settings from localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        setSettings(JSON.parse(raw));
-      }
-    } catch (err) {
-      console.warn("Failed to load reminder settings:", err);
-    }
-  }, []);
-
-  // persist settings
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch (err) {
-      console.warn("Failed to save reminder settings:", err);
-    }
-  }, [settings]);
-
-  // Request notification permission
-  const requestNotificationPermission = async () => {
-    if (!("Notification" in window)) {
-      setStatusMessage("This browser does not support notifications.");
-      return;
-    }
-    try {
-      const p = await Notification.requestPermission();
-      setNotifPermission(p);
-      if (p === "granted") {
-        setStatusMessage("Notifications enabled. Reminders will use native notifications.");
-      } else if (p === "denied") {
-        setStatusMessage("Notifications blocked. Use the page while open to receive alerts.");
-      } else {
-        setStatusMessage("Notification permission: " + p);
-      }
-    } catch (err) {
-      console.warn(err);
-      setStatusMessage("Failed to request notification permission.");
-    }
   };
 
-  // beep using WebAudio (short)
-  const playBeep = () => {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.value = 880;
-      o.connect(g);
-      g.connect(ctx.destination);
-      g.gain.value = 0.0001;
-      const now = ctx.currentTime;
-      g.gain.linearRampToValueAtTime(0.03, now + 0.01);
-      o.start(now);
-      g.gain.linearRampToValueAtTime(0.0001, now + 0.4);
-      o.stop(now + 0.45);
-    } catch (err) {
-      // fallback to alert
-      // eslint-disable-next-line no-alert
-      // alert("Reminder!");
-    }
-  };
+  const filtered = allPoses.filter((p) =>
+    p.english_name.toLowerCase().includes(poseSearch.toLowerCase())
+  );
 
-  // show a notification or fallback to an in-page message
-  const fireReminder = (title: string, body?: string) => {
-    if (typeof window === "undefined") return;
-    if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        new Notification(title, { body: body ?? "Time for a short stretching break." });
-      } catch (err) {
-        console.warn("Notification failed", err);
-        setStatusMessage(title + " — " + (body ?? ""));
-      }
-    } else {
-      // in-page fallback
-      setStatusMessage(title + " — " + (body ?? ""));
-      // optionally show alert if user chooses so
-      // eslint-disable-next-line no-alert
-      // alert(`${title}\n\n${body ?? ""}`);
-    }
-    playBeep();
-  };
-
-  // schedule timers for reminders (clears existing timers)
-  const scheduleReminders = () => {
-    // clear
-    timersRef.current.forEach((id) => window.clearTimeout(id));
-    timersRef.current = [];
-
-    if (!settings.enabled) return;
-
-    for (const hhmm of settings.times) {
-      const ms = msUntilNextTime(hhmm);
-      const id = window.setTimeout(function handler() {
-        fireReminder("Stretching time", `It's ${hhmm}. A short stretch can help mobility.`);
-        // after firing, schedule the same reminder for next day
-        const nextId = window.setTimeout(handler, 24 * 60 * 60 * 1000);
-        timersRef.current.push(nextId);
-      }, ms);
-      timersRef.current.push(id);
-    }
-  };
-
-  // schedule on settings change or mount
-  useEffect(() => {
-    scheduleReminders();
-    return () => {
-      timersRef.current.forEach((id) => window.clearTimeout(id));
-      timersRef.current = [];
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings]);
-
-  // Helper: add time, remove time
-  const addTime = (hhmm: string) => {
-    if (!/^\d{1,2}:\d{2}$/.test(hhmm)) {
-      setStatusMessage("Time must be HH:MM");
-      return;
-    }
-    const [hStr, mStr] = hhmm.split(":");
-    const h = Number(hStr);
-    const m = Number(mStr);
-    if (h < 0 || h > 23 || m < 0 || m > 59) {
-      setStatusMessage("Invalid time");
-      return;
-    }
-    setSettings((s) => ({ ...s, times: Array.from(new Set([...s.times, hhmm])).sort() }));
-    setStatusMessage("");
-  };
-
-  const removeTime = (hhmm: string) => {
-    setSettings((s) => ({ ...s, times: s.times.filter((t) => t !== hhmm) }));
-  };
-
-  // Stepper logic
-  const startStepper = () => {
-    const step = routine.steps[currentStepIndex];
-    if (step.durationSec) {
-      setStepRemaining(step.durationSec);
-    } else {
-      setStepRemaining(null);
-    }
-    setIsRunning(true);
-  };
-
-  const pauseStepper = () => {
-    setIsRunning(false);
-    if (stepTimerRef.current) {
-      window.clearInterval(stepTimerRef.current);
-      stepTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (isRunning) {
-      // If current step has duration, start countdown
-      const step = routine.steps[currentStepIndex];
-      if (step.durationSec) {
-        setStepRemaining(prev =>
-            prev == null
-                ? (step.durationSec ?? null)
-                : prev);
-        // tick every second
-        stepTimerRef.current = window.setInterval(() => {
-          setStepRemaining((r) => {
-            if (r == null) return r;
-            if (r <= 1) {
-              // advance automatically
-              window.clearInterval(stepTimerRef.current!);
-              stepTimerRef.current = null;
-              setIsRunning(false);
-              // play short beep
-              playBeep();
-              // automatically move to next step but don't start it
-              setCurrentStepIndex((i) => Math.min(i + 1, routine.steps.length - 1));
-              return 0;
-            }
-            return r - 1;
-          });
-        }, 1000) as unknown as number;
-      }
-    } else {
-      if (stepTimerRef.current) {
-        window.clearInterval(stepTimerRef.current);
-        stepTimerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (stepTimerRef.current) {
-        window.clearInterval(stepTimerRef.current);
-        stepTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, currentStepIndex, selectedRoutineId]);
-
-  const goToPrev = () => {
-    pauseStepper();
-    setCurrentStepIndex((i) => Math.max(0, i - 1));
-    setStepRemaining(null);
-  };
-
-  const goToNext = () => {
-    pauseStepper();
-    setCurrentStepIndex((i) => Math.min(routine.steps.length - 1, i + 1));
-    setStepRemaining(null);
-  };
-
-  // quick test notification (fires immediately)
-  const testReminderNow = () => {
-    fireReminder("Test: stretching reminder", "This is a test reminder. Try starting a short routine.");
-  };
+  const alreadyInSession = (pose: Pose) =>
+    suggestion ? suggestion.poses.some((p) => p.id === pose.id) : false;
 
   return (
-    <main className="p-6 max-w-4xl mx-auto">
-      <p className="text-sm font-semibold text-primary">
-          Welcome, {user.name || user.email}
-        </p>
-        <h1 className="text-3xl font-semibold">Daily Indoors Movement</h1>
-      <Card className="mb-6 mt-3">
-        <CardHeader>
-          <CardTitle>Reminders</CardTitle>
-          <CardDescription>
-            Configure daily times when you'd like to be reminded to do a short, gentle stretching routine.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={settings.enabled}
-                  onChange={(e) => setSettings((s) => ({ ...s, enabled: e.target.checked }))}
-                />
-                <span className="text-sm">Enable daily reminders</span>
-              </label>
+    <main className="p-6 max-w-4xl mx-auto space-y-6">
+      <h1 className="text-3xl font-semibold">AI-Assisted Yoga Flow</h1>
 
-              <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" onClick={requestNotificationPermission} size="sm">
-                  Enable Notifications
-                </Button>
-                <Button variant="ghost" onClick={testReminderNow} size="sm">
-                  Test reminder
+      {!suggestion ? (
+        <>
+          {/* Mood */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your current mood</CardTitle>
+            </CardHeader>
+            <CardContent className="flex gap-2 justify-between">
+              {[1, 2, 3, 4, 5].map((level) => {
+                const emoji = ["😞", "😐", "😌", "🙂", "😄"][level - 1];
+                return (
+                  <button
+                    key={level}
+                    className={`text-2xl ${mood === level ? "scale-125" : ""}`}
+                    onClick={() => setMood(level)}
+                  >
+                    {emoji}
+                  </button>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Symptoms */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Symptoms</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {commonSymptoms.map((s) => (
+                  <button
+                    key={s}
+                    className={`px-2 py-1 border rounded ${
+                      symptoms.includes(s) ? "bg-primary text-white" : "bg-card"
+                    }`}
+                    onClick={() => toggleSymptom(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  placeholder="Add custom symptom"
+                  value={customSymptom}
+                  onChange={(e) => setCustomSymptom(e.target.value)}
+                  className="border rounded p-1 flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (customSymptom.trim()) {
+                      toggleSymptom(customSymptom.trim());
+                      setCustomSymptom("");
+                    }
+                  }}
+                >
+                  Add
                 </Button>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="grid grid-cols-2 gap-3 items-center">
-              <div>
-                <p className="text-sm font-medium">Scheduled times</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {settings.times.length ? (
-                    settings.times.map((t) => (
-                      <div key={t} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 bg-muted/20">
-                        <span className="text-sm">{t}</span>
-                        <button
-                          className="text-xs px-1 rounded hover:bg-muted"
-                          onClick={() => removeTime(t)}
-                          aria-label={`Remove ${t}`}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">No times set</span>
+          {/* Goal */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Goal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <select
+                className="border rounded p-1 w-full"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+              >
+                {goals.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            </CardContent>
+          </Card>
+
+          {/* Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Preferences / Focus</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <textarea
+                value={preferences}
+                onChange={(e) => setPreferences(e.target.value)}
+                placeholder="Describe what you like, your mood, or what you want from the session..."
+                className="w-full border rounded-md p-2"
+                rows={3}
+              />
+              <Button onClick={handleGenerate} disabled={loading} className="mt-2">
+                {loading ? "Generating..." : "Generate Custom Yoga Session"}
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
+          {/* Suggestion */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{suggestion.title}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Difficulty: {suggestion.difficulty}
+              </p>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {suggestion.poses.map((pose) => (
+                <div
+                  key={pose.id}
+                  className="border rounded-lg p-3 flex flex-col items-center"
+                >
+                  <img
+                    src={pose.url_png}
+                    alt={pose.english_name}
+                    width={128}
+                    height={128}
+                    className="mb-2"
+                  />
+                  <p className="font-semibold">{pose.english_name}</p>
+                  {pose.sanskrit_name_adapted && (
+                    <p className="text-xs text-muted-foreground">
+                      {pose.sanskrit_name_adapted}
+                    </p>
+                  )}
+                  {pose.pose_benefits && (
+                    <p className="text-xs mt-1">{pose.pose_benefits}</p>
                   )}
                 </div>
-              </div>
+              ))}
+            </CardContent>
+          </Card>
 
-              <AddTimeInput onAdd={(t) => addTime(t)} />
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Notifications require permission and will usually only appear while the site/tab is open. For persistent OS-level reminders, consider native apps or enabling push notifications (not implemented here).
-            </p>
-            {statusMessage && <p className="text-sm text-muted-foreground">{statusMessage}</p>}
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button onClick={() => { setSettings({ enabled: false, times: [] }); setStatusMessage("Cleared reminders."); }}>
-            Clear all
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={openManualPoseModal}
+          >
+            ➕ Add Pose Manually
           </Button>
-        </CardFooter>
-      </Card>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Stretching Routines</CardTitle>
-          <CardDescription>
-            Choose a routine and step through it at your own pace. All routines are gentle — stop if anything hurts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3 mb-4">
-            {ROUTINES.map((r) => (
-              <button
-                key={r.id}
-                className={`px-3 py-2 rounded-md border ${r.id === selectedRoutineId ? "bg-primary/10 border-primary" : "bg-card border-border"}`}
-                onClick={() => {
-                  setSelectedRoutineId(r.id);
-                  setCurrentStepIndex(0);
-                  setIsRunning(false);
-                  setStepRemaining(null);
-                }}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+          {/* Generate Again */}
+          <Button
+            onClick={() => {
+              setSuggestion(null);
+              setPreferences("");
+              setSymptoms([]);
+              setCustomSymptom("");
+              setGoal(goals[0]);
+              setMood(3);
+            }}
+          >
+            Generate Again
+          </Button>
+        </>
+      )}
+      <Dialog open={manualModalOpen} onOpenChange={setManualModalOpen}>
+          <DialogContent className="
+            sm:max-w-2xl 
+            bg-background 
+            text-foreground 
+            border 
+            shadow-xl 
+            rounded-xl
+          ">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">
+                Add a Yoga Pose
+              </DialogTitle>
+              <DialogDescription>
+                Browse and add poses to your session. You can search by pose name.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="rounded-lg border p-4 bg-card/60">
-            <h3 className="text-lg font-semibold">{routine.steps[currentStepIndex].title}</h3>
-            <p className="text-sm text-muted-foreground mt-2">{routine.steps[currentStepIndex].instruction}</p>
-
-            {stepRemaining != null && (
-              <div className="mt-3 text-center">
-                <div className="text-2xl font-mono">{formatSeconds(stepRemaining)}</div>
-                <div className="text-xs text-muted-foreground">Remaining</div>
-              </div>
-            )}
-
-            <div className="mt-4 flex gap-2">
-              <Button onClick={goToPrev} disabled={currentStepIndex === 0}>Previous</Button>
-              {isRunning ? (
-                <Button variant="destructive" onClick={pauseStepper}>Pause</Button>
-              ) : (
-                <Button onClick={startStepper}>Start</Button>
-              )}
-              <Button onClick={goToNext} disabled={currentStepIndex >= routine.steps.length - 1}>Next</Button>
-              <Button variant="ghost" onClick={() => {
-                setCurrentStepIndex(0);
-                setIsRunning(false);
-                setStepRemaining(null);
-              }}>Reset</Button>
+            <div className="mt-4">
+              <Input
+                placeholder="Search poses..."
+                value={poseSearch}
+                onChange={(e) => setPoseSearch(e.target.value)}
+                className="w-full"
+              />
             </div>
 
-            <p className="text-xs text-muted-foreground mt-3">
-              Tip: move slowly, breathe, and only go as far as comfortable. This is general information, not medical advice.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+              {filtered.map((pose) => {
+                const disabled = alreadyInSession(pose);
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick access</CardTitle>
-          <CardDescription>Jump straight into a routine</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3">
-            {ROUTINES.map((r) => (
-              <Button key={r.id} onClick={() => {
-                setSelectedRoutineId(r.id);
-                setCurrentStepIndex(0);
-                setIsRunning(true);
-                const firstDuration = r.steps[0].durationSec ?? 0;
-                setStepRemaining(firstDuration || null);
-              }}>{r.label}</Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                return (
+                  <button
+                    key={pose.id}
+                    onClick={() => !disabled && addPoseToSuggestion(pose)}
+                    disabled={disabled}
+                    className={`relative rounded-xl border flex flex-col p-4 items-center shadow-sm
+                      transition hover:shadow-md hover:bg-gray-50
+                      ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+                    `}
+                  >
+                    <img
+                      src={pose.url_png}
+                      alt={pose.english_name}
+                      className="w-28 h-28 object-contain"
+                    />
 
-      {statusMessage && <div className="mt-4 text-sm">{statusMessage}</div>}
+                    <p className="mt-2 font-semibold text-sm text-gray-900">
+                      {pose.english_name}
+                    </p>
+
+                    {disabled && (
+                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center text-sm font-semibold rounded-xl">
+                        Added
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <Button className="mt-6 w-full" variant="secondary">
+              Close
+            </Button>
+          </DialogContent>
+        </Dialog>
     </main>
   );
-}
-
-/** tiny component for adding time */
-function AddTimeInput({ onAdd }: { onAdd: (hhmm: string) => void }) {
-  const [value, setValue] = useState("");
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        type="time"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="rounded-md border px-2 py-1"
-        aria-label="Add time"
-      />
-      <Button onClick={() => { if (value) { onAdd(value); setValue(""); } }} size="sm">Add</Button>
-    </div>
-  );
-}
-
-/** helpers */
-function formatSeconds(sec: number) {
-  const s = Math.max(0, Math.floor(sec));
-  const mm = Math.floor(s / 60);
-  const ss = s % 60;
-  return `${mm}:${ss.toString().padStart(2, "0")}`;
 }

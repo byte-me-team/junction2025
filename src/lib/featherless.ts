@@ -35,6 +35,33 @@ export const JointActivitiesSchema = z.object({
 
 export type JointActivities = z.infer<typeof JointActivitiesSchema>;
 
+/** Single yoga pose */
+export const YogaPoseSchema = z.object({
+  id: z.number(),
+  english_name: z.string(),
+  sanskrit_name_adapted: z.string().optional(),
+  difficulty_level: z.enum(["Beginner", "Intermediate", "Expert"]),
+  url_png: z.string().url(),
+  pose_benefits: z.string().optional(),
+});
+
+/** Full custom yoga session */
+export const YogaSessionSchema = z.object({
+  title: z.string().min(5),
+  difficulty: z.enum(["Beginner", "Intermediate", "Expert"]),
+  poses: z.array(YogaPoseSchema).min(1),
+});
+
+/** API response wrapper */
+export const YogaSessionResponseSchema = z.object({
+  sessions: z.array(YogaSessionSchema).min(1),
+});
+
+export type YogaPose = z.infer<typeof YogaPoseSchema>;
+export type YogaSession = z.infer<typeof YogaSessionSchema>;
+export type YogaSessionResponse = z.infer<typeof YogaSessionResponseSchema>;
+
+
 const GeneralSuggestionSchema = z.object({
   title: z.string(),
   summary: z.string(),
@@ -211,6 +238,93 @@ Return JSON only. No backticks, no code fences, no commentary.
   }
 
   return NormalizedPreferencesSchema.parse(parsed);
+}
+
+type YogaPoseFromAPI = {
+  id: number;
+  english_name: string;
+  difficulty_level: "Beginner" | "Intermediate" | "Expert";
+  url_png?: string;
+  pose_benefits?: string;
+  sanskrit_name_adapted?: string;
+};
+
+export async function fetchYogaPoses(level?: string): Promise<YogaPoseFromAPI[]> {
+  const url = new URL("https://yoga-api-nzy4.onrender.com/v1/poses");
+  if (level) url.searchParams.set("level", level.toLowerCase());
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.poses)) return data.poses;
+  return [];
+}
+
+export async function callFeatherlessYogaSuggestion({
+  history,
+  mood,
+  symptoms,
+  goal,
+  preferences,
+}: {
+  history: string[];
+  mood: number; // 1–5
+  symptoms: string[];
+  goal: string;
+  preferences: NormalizedPreferences;
+}) {
+
+const availablePoses = await fetchYogaPoses();
+
+const YOGA_SESSION_PROMPT = `
+You are a friendly AI yoga coach. Generate a single personalized yoga session for an elderly user.
+
+Requirements:
+- Use **only** the poses listed below from the Yoga API.
+- Tailor the session to their mood (1–5), symptoms, goal, and preferences.
+- Include 2 poses.
+- Each pose must include: id, english_name, difficulty_level, url_png, pose_benefits
+- Session must have: title (<10 words), difficulty, poses array.
+- JSON only.
+
+User input:
+- Mood: ${mood}
+- Symptoms: ${symptoms.join(", ")}
+- Goal: ${goal}
+- Preferences: ${preferences.interests.map(i => i.name).join(", ")}
+
+Available poses:
+${availablePoses.map((p) =>`id: ${p.id}, english_name: "${p.english_name}", difficulty_level: "${p.difficulty_level}"
+, url_png: "${p.url_png}"`).join("\n")}
+
+Return ONLY ONE JSON object like:
+{
+  "sessions": [
+    {
+      "title": "Gentle Morning Flow",
+      "difficulty": "Beginner",
+      "poses": [
+        {
+          "id": 1,
+          "english_name": "Cat Pose",
+          "difficulty_level": "Beginner",
+          "url_png": "...",
+          "pose_benefits": "..."
+        }
+      ]
+    }
+  ]
+}
+`.trim();
+
+  const rawOutput = await callFeatherlessRaw(YOGA_SESSION_PROMPT);
+
+  const jsonStringMatch = rawOutput.match(/\{[\s\S]*\}/m);
+  if (!jsonStringMatch) throw new Error("No JSON found in AI output");
+  const parsed = JSON.parse(jsonStringMatch[0]);
+
+  return YogaSessionResponseSchema.parse(parsed);
 }
 
 const MATCH_SYSTEM_INSTRUCTIONS = `
