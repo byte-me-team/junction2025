@@ -1,6 +1,7 @@
 "use client";
 
 import { useRequireAuth } from "@/lib/use-require-auth";
+import { CalendarBoard } from "@/components/calendar-board";
 
 export default function CalendarPage() {
   const { user, isLoading } = useRequireAuth();
@@ -18,23 +19,18 @@ export default function CalendarPage() {
   }
 
   return (
-    <main>
-      <section>
-        <p className="text-sm font-semibold text-primary">
-          Planning for {user.name || user.email}
-        </p>
-        <h1 className="text-3xl font-semibold">Calendar</h1>
-        <p className="text-base text-muted-foreground">
-          The previous week-at-a-glance view relied on the Espoo suggestion
-          pipeline, which has been removed. Rebuild whichever calendar
-          experience you need in this file.
-        </p>
-        <div className="rounded-3xl bg-card p-6 text-sm text-card-foreground shadow-sm">
-          <p className="text-muted-foreground">
-            No events are displayed right now. Once you reintroduce your own
-            event source, render it here.
+    <main className="px-6 py-10">
+      <section className="mx-auto w-full max-w-6xl space-y-8">
+        <div>
+          <p className="text-sm font-semibold text-primary">
+            Planning for {user.name || user.email}
+          </p>
+          <h1 className="text-3xl font-semibold">Calendar</h1>
+          <p className="text-base text-muted-foreground">
+            Create new activities, drag them between days, and log invites directly from this view.
           </p>
         </div>
+        <CalendarBoard userId={user.id} />
       </section>
     </main>
   );

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScheduleActivityDialog } from "@/components/schedule-activity-dialog";
 
 type Activity = {
   title: string;
@@ -95,17 +96,20 @@ export default function MatchSuggestionsPage() {
               >
                 Let's go!
               </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() =>
-                  setStatusNotice(
-                    `Scheduled "${activity.title}" for tomorrow.`
-                  )
+              <ScheduleActivityDialog
+                triggerLabel="Schedule"
+                defaultTitle={activity.title}
+                defaultDescription={activity.description}
+                source="relative"
+                sourceId={activity.title}
+                relatives={[]}
+                triggerVariant="outline"
+                triggerSize="default"
+                triggerClassName="w-full"
+                onScheduled={() =>
+                  setStatusNotice(`Scheduled "${activity.title}" in your calendar.`)
                 }
-              >
-                Schedule for tomorrow
-              </Button>
+              />
             </CardFooter>
           </Card>
         ))}

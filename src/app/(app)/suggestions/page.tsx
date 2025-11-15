@@ -14,6 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useRequireAuth } from "@/lib/use-require-auth";
+import { logActivityHistory } from "@/lib/log-activity-history";
+import { ScheduleActivityDialog } from "@/components/schedule-activity-dialog";
 
 const LOADING_STAGES = [
   "Fetching data",
@@ -251,45 +253,13 @@ function GeneralSuggestionLab({
     }
   }, [email, closeModal]);
 
-  const handleCustomize = useCallback(
-    async (suggestionId: string) => {
-      setUpdatingId(suggestionId);
-      setError(null);
-      try {
-        const res = await fetch(`/api/general-suggestions/${suggestionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accepted: true }),
-        });
-        const payload = (await res.json().catch(() => null)) as
-          | { suggestion?: DashboardSuggestion; error?: string }
-          | null;
-        if (!res.ok) {
-          throw new Error(payload?.error ?? "Unable to update choice");
-        }
-        const updated = payload?.suggestion;
-        if (updated) {
-          setSuggestions((prev) =>
-            prev.map((item) =>
-              item.id === updated.id
-                ? { ...item, accepted: true }
-                : { ...item, accepted: false }
-            )
-          );
-          setCustomTitle(updated.title);
-          setCustomSummary(updated.summary);
-          setInviteMessage(`Hey family, let's try “${updated.title}” soon!`);
-          setSelectedRelatives([]);
-          setModalSuggestion(updated);
-        }
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setUpdatingId(null);
-      }
-    },
-    []
-  );
+  const handleCustomize = useCallback((suggestion: DashboardSuggestion) => {
+    setCustomTitle(suggestion.title);
+    setCustomSummary(suggestion.summary);
+    setInviteMessage(`Hey family, let's try “${suggestion.title}” soon!`);
+    setSelectedRelatives([]);
+    setModalSuggestion(suggestion);
+  }, []);
 
   const showSkeleton = isGenerating || (isLoading && suggestions.length === 0);
 
@@ -301,20 +271,56 @@ function GeneralSuggestionLab({
     );
   }, []);
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
+    if (!modalSuggestion) return;
     const chosen = relatives.filter((relative) =>
       selectedRelatives.includes(relative.id)
     );
-    const summaryMessage =
-      chosen.length > 0
-        ? `Sent invitations to ${chosen
-            .map((r) => r.name.split(" ")[0] ?? r.name)
-            .join(", ")}.`
-        : "Saved your invite for later.";
+    const partnerNames = chosen.length
+      ? chosen.map((r) => r.name.split(" ")[0] ?? r.name).join(", ")
+      : undefined;
+    const summaryMessage = partnerNames
+      ? `Sent invitations to ${partnerNames}.`
+      : "Saved your invite for later.";
 
-    setStatusNotice(summaryMessage);
-    closeModal();
-  }, [closeModal, relatives, selectedRelatives]);
+    try {
+      setUpdatingId(modalSuggestion.id);
+      const res = await fetch(`/api/general-suggestions/${modalSuggestion.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accepted: true }),
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | { suggestion?: DashboardSuggestion; error?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(payload?.error ?? "Unable to update choice");
+      }
+      const updated = payload?.suggestion;
+      if (updated) {
+        setSuggestions((prev) =>
+          prev.map((item) =>
+            item.id === updated.id
+              ? { ...item, accepted: true }
+              : { ...item, accepted: false }
+          )
+        );
+      }
+      await logActivityHistory({
+        title: customTitle || modalSuggestion.title,
+        description: customSummary || modalSuggestion.summary,
+        source: "suggestion",
+        partnerName: partnerNames,
+        metadata: modalSuggestion.metadata,
+      });
+      setStatusNotice(summaryMessage);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUpdatingId(null);
+      closeModal();
+    }
+  }, [closeModal, customSummary, customTitle, modalSuggestion, relatives, selectedRelatives]);
 
   return (
     <div className="mt-6 space-y-4 rounded-3xl border border-border/60 bg-card/50 p-6">
@@ -426,22 +432,25 @@ function GeneralSuggestionLab({
                   <div className="flex w-full flex-wrap gap-2">
                     <Button
                       className="flex-1"
-                      onClick={() => handleCustomize(suggestion.id)}
+                      onClick={() => handleCustomize(suggestion)}
                       disabled={isUpdating}
                     >
                       Let&apos;s go!
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() =>
-                        setStatusNotice(
-                          `Scheduled “${suggestion.title}” for tomorrow.`
-                        )
+                    <ScheduleActivityDialog
+                      triggerLabel="Schedule"
+                      defaultTitle={suggestion.title}
+                      defaultDescription={suggestion.summary}
+                      relatives={relatives}
+                      source="suggestion"
+                      sourceId={suggestion.id}
+                      triggerVariant="outline"
+                      triggerSize="default"
+                      triggerClassName="flex-1"
+                      onScheduled={() =>
+                        setStatusNotice(`Scheduled “${suggestion.title}” in your calendar.`)
                       }
-                    >
-                      Schedule for tomorrow
-                    </Button>
+                    />
                   </div>
                 </CardFooter>
               </Card>
@@ -546,21 +555,8 @@ function GeneralSuggestionLab({
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button
-                className="flex-1 min-w-[150px]"
-                onClick={handleSendInvites}
-              >
+              <Button className="flex-1 min-w-[150px]" onClick={handleSendInvites}>
                 Send invite
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 min-w-[150px]"
-                onClick={() => {
-                  setStatusNotice("Saved your invite for later.");
-                  closeModal();
-                }}
-              >
-                Save for later
               </Button>
               <Button
                 variant="ghost"
@@ -714,15 +710,29 @@ function RealEventsLab({
     );
   }, []);
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
+    if (!modalEvent) return;
     const count = selectedRelatives.length;
+    await logActivityHistory({
+      title: customTitle || modalEvent.title,
+      description: customSummary || modalEvent.description,
+      source: "real_event",
+      partnerName:
+        count > 0
+          ? `${count} relative${count === 1 ? "" : "s"}`
+          : undefined,
+      metadata: {
+        location: modalEvent.locationName,
+        startTime: modalEvent.startTime,
+      },
+    });
     setStatusNotice(
       count > 0
         ? `Sent invitation to ${count} relative${count === 1 ? "" : "s"}.`
         : "Saved your invite for later."
     );
     closeModal();
-  }, [closeModal, selectedRelatives]);
+  }, [closeModal, customSummary, customTitle, modalEvent, selectedRelatives]);
 
   const cityLabel = city?.length ? city : "your city";
 
@@ -767,27 +777,41 @@ function RealEventsLab({
                 </p>
               </CardContent>
               <CardFooter className="mt-auto w-full flex-col items-start gap-3">
-              <div className="flex w-full flex-wrap gap-2">
-                <Button className="flex-1" onClick={() => handleCustomize(event)}>
-                  Let&apos;s go!
-                </Button>
-              </div>
-              {event.infoUrl ? (
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full flex items-center justify-center gap-2"
-                >
-                  <a
-                    href={event.infoUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                <div className="flex w-full flex-wrap gap-2">
+                  <Button className="flex-1" onClick={() => handleCustomize(event)}>
+                    Let&apos;s go!
+                  </Button>
+                  <ScheduleActivityDialog
+                    triggerLabel="Schedule"
+                    defaultTitle={event.title}
+                    defaultDescription={event.description || undefined}
+                    relatives={relatives}
+                    source="real_event"
+                    sourceId={event.id}
+                    triggerVariant="outline"
+                    triggerSize="default"
+                    triggerClassName="flex-1"
+                    onScheduled={() =>
+                      setStatusNotice(`Scheduled “${event.title}” in your calendar.`)
+                    }
+                  />
+                </div>
+                {event.infoUrl ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2"
                   >
-                    View details
-                    <span aria-hidden className="text-base">↗</span>
-                  </a>
-                </Button>
-              ) : null}
+                    <a
+                      href={event.infoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View details
+                      <span aria-hidden className="text-base">↗</span>
+                    </a>
+                  </Button>
+                ) : null}
               </CardFooter>
             </Card>
           ))}
@@ -878,21 +902,8 @@ function RealEventsLab({
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button
-                className="flex-1 min-w-[150px]"
-                onClick={handleSendInvites}
-              >
+              <Button className="flex-1 min-w-[150px]" onClick={handleSendInvites}>
                 Send invite
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 min-w-[150px]"
-                onClick={() => {
-                  setStatusNotice("Saved your invite for later.");
-                  closeModal();
-                }}
-              >
-                Save for later
               </Button>
               <Button
                 variant="ghost"

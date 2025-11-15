@@ -66,12 +66,10 @@ export function SignupForm({
   onConfirmPasswordChange,
   onSubmit,
 }: SignupFormProps) {
-  const defaultCity = "Espoo"
   const cityOptions = Array.from(
     new Set([
-      defaultCity,
-      "Helsinki",
       "Espoo",
+      "Helsinki",
       "Vantaa",
       "Tampere",
       "Turku",
@@ -81,7 +79,7 @@ export function SignupForm({
       "Lahti",
     ])
   )
-  const normalizedCity = city || defaultCity
+  const normalizedCity = city ?? ""
 
   return (
     <Card className={className}>
@@ -135,6 +133,9 @@ export function SignupForm({
                 onChange={(event) => onCityChange(event.target.value)}
                 required
               >
+                <option value="" disabled>
+                  Select a city
+                </option>
                 {cityOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}

@@ -22,9 +22,48 @@ model User {
   accounts      Account[]
   sessions      Session[]
 
-  matchedSuggestions MatchedSuggestion[]
   generalSuggestions GeneralSuggestion[]
   matchesAsUser Match[]          @relation("UserMatches")
+  history       ActivityHistory[]
+  calendarActivities CalendarActivity[]
+}
+
+enum ActivitySource {
+  suggestion
+  real_event
+  relative
+  calendar
+}
+
+model ActivityHistory {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  partnerName String?
+  source      ActivitySource
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model CalendarActivity {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  note        String?
+  partnerName String?
+  dueDate     DateTime?
+  source      ActivitySource? @default(calendar)
+  sourceId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, dueDate])
 }
 
 model UserPreferences {
@@ -104,31 +143,6 @@ model Match {
   createdAt DateTime @default(now())
 }
 
-model Event {
-  id             String   @id @default(cuid())
-  sourceId       String   @unique
-  title          String
-  description    String?
-  summary        String?
-  startTime      DateTime
-  endTime        DateTime?
-  locationName   String?
-  locationAddress String?
-  city           String?
-  price          String?
-  tags           String[]
-  sourceUrl      String?
-  rawJson        Json
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  matchedSuggestions MatchedSuggestion[]
-
-  @@index([startTime])
-}
-
-
 
 
 //
@@ -154,23 +168,6 @@ model GeneralSuggestion {
   @@index([userId, createdAt])
 }
 
-
-model MatchedSuggestion {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventId     String
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  reason      String
-  confidence  Float    @default(0.5)
-  metadata    Json?
-  isGoing     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, eventId])
-  @@index([userId])
-}
 enum SuggestionStatus {
   pending
   accepted

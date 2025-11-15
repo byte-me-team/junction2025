@@ -6,12 +6,12 @@ type Params = Promise<{ id: string }>
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Params }
-): Promise<NextResponse> {
-  const { id } = await params
-
+  context: { params: Promise<{ id?: string }> | { id?: string } }
+) {
   try {
-    let suggestionId = params?.id;
+    const rawParams = context.params;
+    const resolvedParams = rawParams instanceof Promise ? await rawParams : rawParams;
+    let suggestionId = resolvedParams?.id;
     if (!suggestionId) {
       const path = req.nextUrl.pathname;
       suggestionId = path.split("/").filter(Boolean).pop();

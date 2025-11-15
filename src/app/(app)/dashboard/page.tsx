@@ -57,8 +57,8 @@ const tiles: DashboardTile[] = [
   },
   {
     title: "Loved ones",
-    subtitle: "",
-    href: "/relative",
+    subtitle: "Care circles",
+    href: "/relatives",
     accent: "from-fuchsia-400/20 via-fuchsia-400/10 to-transparent",
     cols: "lg:col-span-2",
     hero: "icon",
@@ -86,10 +86,8 @@ const tiles: DashboardTile[] = [
     subtitle: "",
     href: "/feed",
     accent: "from-border/60 via-card/70 to-card/80",
-    badge: "Coming soon",
     hero: "icon",
     icon: NotebookPen,
-    disabled: true,
   },
 ];
 
