@@ -57,7 +57,7 @@ export function SignupForm({
   formError,
   buttonLabel = "Continue",
   supportingText = "We'll store your answers securely when onboarding completes.",
-  helperText = "Use whatever name seniors and relatives will recognize.",
+  helperText = "Use whatever name friends and relatives will recognize.",
   footer,
   onNameChange,
   onEmailChange,

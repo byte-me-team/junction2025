@@ -103,12 +103,12 @@ export default function SignInPage() {
                 setPassword(value);
               }}
               onSubmit={handleSubmit}
-              supportingText="Use the email and password you created during onboarding."
+              supportingText="Use the email and password you created during account creation."
               footer={
                 <p className="text-center text-sm text-muted-foreground">
                   First time here?{" "}
                   <Link className="font-medium text-primary" href="/onboarding">
-                    Start onboarding
+                    Create an account
                   </Link>
                 </p>
               }

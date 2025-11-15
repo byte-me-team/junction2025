@@ -59,7 +59,7 @@ const baseSections: NavSection[] = [
     items: [
       { title: "All suggestions", url: "/suggestions", icon: Sparkles },
       { title: "Activity feed", url: "/feed", icon: NotebookPen },
-      { title: "Shared plans", url: "/plans", icon: HeartHandshake },
+  //    { title: "Shared plans", url: "/plans", icon: HeartHandshake },
     ],
   },
   {

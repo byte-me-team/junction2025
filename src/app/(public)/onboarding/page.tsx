@@ -110,14 +110,14 @@ export default function OnboardingBasicPage() {
           }}
           onSubmit={handleSubmit}
           supportingText="We'll never spam this address. It simply identifies the profile."
-          footer={
-            <p className="text-center text-sm text-muted-foreground">
-              Already added preferences?{" "}
-              <Link className="font-medium text-primary" href="/auth/sign-in">
-                Jump to dashboard
-              </Link>
-            </p>
-          }
+//          footer={
+//            <p className="text-center text-sm text-muted-foreground">
+ //             Already added preferences?{" "}
+//              <Link className="font-medium text-primary" href="/auth/sign-in">
+//                Jump to dashboard
+//              </Link>
+//            </p>
+//          }
         />
       </section>
     </main>
