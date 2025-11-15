@@ -18,8 +18,8 @@ export default function CalendarPage() {
   }
 
   return (
-    <main className="bg-background">
-      <section className="mx-auto w-full max-w-4xl px-6 py-10 space-y-4">
+    <main>
+      <section>
         <p className="text-sm font-semibold text-primary">
           Planning for {user.name || user.email}
         </p>

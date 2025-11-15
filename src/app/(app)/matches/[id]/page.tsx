@@ -57,7 +57,7 @@ export default function MatchSuggestionsPage() {
   }
 
   return (
-    <main className="p-6">
+    <main>
       <h1 className="text-3xl font-semibold mb-6">Your Suggested Activities</h1>
       <div className="grid gap-6 md:grid-cols-3">
         {match.suggestionsJson.activities.map((activity, idx) => (

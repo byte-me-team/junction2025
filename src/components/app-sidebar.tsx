@@ -65,8 +65,8 @@ const baseSections: NavSection[] = [
   {
     title: "Care circle",
     items: [
+      { title: "Loved ones", url: "/relative", icon: HeartHandshake },
       { title: "Invite a relative", url: "/invite", icon: UserPlus },
-      { title: "Loved Ones", url: "/relative", icon: HeartHandshake },
       { title: "Health", url: "/health", icon: Sprout },
     ],
   },
@@ -77,15 +77,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const user = session?.user
 
-  const sections = React.useMemo<NavSection[]>(() => {
-    const accountItems: NavItem[] = user
-      ? [{ title: "Sign out", url: "/auth/sign-out", icon: LogOut }]
-      : [
-          { title: "Sign in", url: "/auth/sign-in", icon: LogIn },
-          { title: "Support", url: "#support", disabled: true, icon: LifeBuoy },
-        ]
-    return [...baseSections, { title: "Account", items: accountItems }]
-  }, [user])
+  const sections = React.useMemo<NavSection[]>(() => baseSections, [])
 
   const isActive = React.useCallback(
     (item: NavItem) => {
@@ -99,7 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   )
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar {...props}>
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-white transition-all group-data-[state=collapsed]/sidebar-wrapper:justify-center group-data-[state=collapsed]/sidebar-wrapper:px-0">
           <Sparkles className="h-6 w-6 text-white" aria-hidden />
@@ -107,12 +99,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <p className="text-lg font-semibold tracking-wide text-white">
               EverGreen
             </p>
-            <p className="text-xs text-white/70">Beyond Dystopia</p>
+            <p className="text-xs text-white/70">Creating Utopia</p>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {sections.slice(0, -1).map((section) => (
+        {sections.map((section) => (
           <SidebarGroup key={section.title} className="pb-1 first:pt-2">
             <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -158,11 +150,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter className="border-t border-border/30 px-4 py-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Sign out"
-              isActive={false}
-            >
+            <SidebarMenuButton asChild tooltip={user ? "Sign out" : "Sign in"}>
               {user ? (
                 <Link href="/auth/sign-out" className="flex items-center gap-2">
                   <LogOut className="h-4 w-4" />
@@ -181,14 +169,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="mt-3 rounded-2xl bg-sidebar-accent/40 p-3 text-xs text-white group-data-[state=collapsed]:hidden">
-          <p className="font-semibold flex items-center gap-2">
-            <Sparkles className="h-3 w-3" aria-hidden />
-            Stay inspired
-          </p>
-          <p className="text-sm">{user?.email ?? "Guest session"}</p>
-          <p className="mt-1 opacity-70">See fresh nudges daily.</p>
-        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

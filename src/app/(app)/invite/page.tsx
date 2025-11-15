@@ -54,7 +54,7 @@ export default function OnboardingBasicPage() {
 
   return (
     <main>
-      <section className="mx-auto  w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <section>
         <div className="mb-6 space-y-2">
           <p className="text-sm font-medium uppercase tracking-[0.3em] text-primary">
             Invite Loved Ones

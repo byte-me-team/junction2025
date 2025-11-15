@@ -267,7 +267,7 @@ export default function OutdoorPage() {
 
   /* UI */
   return (
-    <main className="p-6 max-w-4xl mx-auto">
+    <main>
       <h1 className="text-3xl font-semibold">
         Outdoor Wellness & Mobility
       </h1>

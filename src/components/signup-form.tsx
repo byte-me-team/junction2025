@@ -66,19 +66,21 @@ export function SignupForm({
   onConfirmPasswordChange,
   onSubmit,
 }: SignupFormProps) {
-  const defaultCity = "Aalto"
-  const cityOptions = [
-    defaultCity,
-    "Helsinki",
-    "Espoo",
-    "Vantaa",
-    "Tampere",
-    "Turku",
-    "Oulu",
-    "Jyväskylä",
-    "Kuopio",
-    "Lahti",
-  ]
+  const defaultCity = "Espoo"
+  const cityOptions = Array.from(
+    new Set([
+      defaultCity,
+      "Helsinki",
+      "Espoo",
+      "Vantaa",
+      "Tampere",
+      "Turku",
+      "Oulu",
+      "Jyväskylä",
+      "Kuopio",
+      "Lahti",
+    ])
+  )
   const normalizedCity = city || defaultCity
 
   return (

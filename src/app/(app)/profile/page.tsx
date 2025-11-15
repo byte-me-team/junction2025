@@ -110,8 +110,8 @@ export default function ProfilePreferencesPage() {
     };
 
     return (
-        <main className="bg-background min-h-screen p-6">
-        <section className="mx-auto max-w-5xl">
+        <main>
+          <section>
             <h1 className="text-3xl font-semibold mb-6">Edit Your Profile</h1>
 
             <div className="grid md:grid-cols-2 gap-6">

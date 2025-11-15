@@ -322,7 +322,7 @@ export default function RemindersPage() {
   };
 
   return (
-    <main className="p-6 max-w-4xl mx-auto">
+    <main>
       <p className="text-sm font-semibold text-primary">
           Welcome, {user.name || user.email}
         </p>

@@ -59,8 +59,8 @@ export default function RelativesPage() {
   if (!user) return null;
 
   return (
-        <main className="bg-background">
-          <section className="mx-auto w-full max-w-5xl px-6 py-10">
+        <main>
+          <section>
             <div className="mb-8 space-y-1">
               <p className="text-sm font-semibold text-primary">
                 Hello, {user.name || user.email}

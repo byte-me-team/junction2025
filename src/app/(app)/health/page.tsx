@@ -30,7 +30,7 @@ export default function ChooseActivityPage() {
   ];
 
   return (
-    <main className="p-6 max-w-6xl mx-auto">
+    <main>
       <header className="mb-8">
         <p className="text-sm font-semibold text-primary">Wellness</p>
         <h1 className="text-3xl font-bold mt-2">Where would you like to start?</h1>
