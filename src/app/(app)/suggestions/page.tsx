@@ -120,34 +120,6 @@ export default function SuggestionsPage() {
             />
           ) : null}
         </section>
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
-          <div
-            id="invite"
-            className="rounded-2xl border border-dashed border-primary/40 p-5"
-          >
-            <h3 className="text-xl font-semibold">Invite a relative</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Soon you will be able to share a link for shared onboarding. For
-              now this is just a placeholder section.
-            </p>
-            <Button asChild variant="outline" className="mt-4">
-              <Link href="/invite" className="font-medium text-primary">
-                Generate invite link
-              </Link>
-            </Button>
-          </div>
-          <div
-            id="reminders"
-            className="rounded-2xl border border-border/80 bg-card/80 p-5"
-          >
-            <h3 className="text-xl font-semibold">Daily reminders</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Once suggestions go live, this block will summarize which nudges you
-              have acknowledged. Hook it up to /api/v1/profile later.
-            </p>
-          </div>
-        </div>
       </section>
     </main>
   );
