@@ -8,6 +8,8 @@ import {
   CalendarDays,
   HeartHandshake,
   Map,
+  Notebook,
+  NotebookPen,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -80,13 +82,13 @@ const tiles: DashboardTile[] = [
     icon: Users,
   },
   {
-    title: "City guide",
-    subtitle: "Mapped venues",
-    href: "/matches",
+    title: "Activity Log",
+    subtitle: "History feed",
+    href: "/feed",
     accent: "from-border/60 via-card/70 to-card/80",
     badge: "Coming soon",
     hero: "icon",
-    icon: Map,
+    icon: NotebookPen,
     disabled: true,
   },
 ];
