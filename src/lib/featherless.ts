@@ -36,6 +36,23 @@ export const JointActivitiesSchema = z.object({
 
 export type JointActivities = z.infer<typeof JointActivitiesSchema>;
 
+const GeneralSuggestionSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  benefit: z.string(),
+  mood: z.string().optional(),
+  ideal_time: z.string().optional(),
+  companion_tip: z.string().optional(),
+});
+
+export const GeneralSuggestionsSchema = z.object({
+  suggestions: z.array(GeneralSuggestionSchema).min(1),
+});
+
+export type GeneralSuggestionsPlan = z.infer<
+  typeof GeneralSuggestionsSchema
+>;
+
 // ------------- Low-level HTTP caller -------------
 
 function extractJsonObject(text: string): string {
@@ -244,4 +261,113 @@ Return JSON only. No backticks, no code fences, no commentary.
   }
 
   return JointActivitiesSchema.parse(parsed);
+}
+
+const GENERAL_SUGGESTIONS_INSTRUCTIONS = `
+You are a cheerful guide whose job is to encourage older adults to step outside.
+You will receive a person profile, recent decisions (what they approved or rejected recently), plus their normalized hobbies/preferences.
+Generate EXACTLY 3 concrete activity nudges for their city.
+
+Formatting constraints:
+- Each title must start with a relevant emoji and stay under 6 words.
+- Summaries should be 1 short sentence (max ~25 words) focused on actually going out.
+- "benefit" should be a single upbeat sentence (max 16 words) spelling out the positive outcome.
+- mood / ideal_time / companion_tip must be ultra-short taglines (max 5 words). Use words only (no emoji or special unicode here to keep the JSON simple).
+- Avoid repeating recently rejected titles, and lean into themes that match their approved history.
+
+Respond with VALID JSON ONLY:
+{
+  "suggestions": [
+    {
+      "title": string,
+      "summary": string,
+      "benefit": string,
+      "mood": string,
+      "ideal_time": string,
+      "companion_tip": string
+    }
+  ]
+}
+`.trim();
+
+type SuggestionHistoryEntry = {
+  title: string;
+};
+
+export async function callFeatherlessGeneralSuggestions({
+  name,
+  email,
+  city,
+  preferences,
+  history,
+}: {
+  name?: string | null;
+  email: string;
+  city?: string | null;
+  preferences: NormalizedPreferences;
+  history?: {
+    accepted?: SuggestionHistoryEntry[];
+    rejected?: SuggestionHistoryEntry[];
+  };
+}): Promise<GeneralSuggestionsPlan> {
+  const profileSummary = {
+    name: name ?? "Neighbor",
+    email,
+    city: city ?? "Unknown",
+  };
+
+  const historySectionParts: string[] = [];
+  if (history?.accepted && history.accepted.length > 0) {
+    historySectionParts.push(
+      "Approved ideas they enjoyed:\n" +
+        history.accepted
+          .map((item, index) => `${index + 1}. ${item.title}`)
+          .join("\n")
+    );
+  }
+  if (history?.rejected && history.rejected.length > 0) {
+    historySectionParts.push(
+      "Rejected ideas they passed on recently:\n" +
+        history.rejected
+          .map((item, index) => `${index + 1}. ${item.title}`)
+          .join("\n")
+    );
+  }
+
+  const historySection =
+    historySectionParts.length > 0
+      ? historySectionParts.join("\n\n")
+      : "No prior approvals or rejections yet.";
+
+  const fullPrompt = `
+${GENERAL_SUGGESTIONS_INSTRUCTIONS}
+
+Person profile:
+${JSON.stringify(profileSummary, null, 2)}
+
+Recent decision context:
+${historySection}
+
+Normalized hobbies/preferences:
+${JSON.stringify(preferences, null, 2)}
+
+Return JSON only. No code fences. No commentary.
+  `.trim();
+
+  const output = await callFeatherlessRaw(fullPrompt);
+  const jsonString = extractJsonObject(output);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch (err) {
+    throw new Error(
+      "Failed to parse general suggestions JSON: " +
+        (err as Error).message +
+        "\nHere is the output: " +
+        output
+    );
+  }
+
+  return GeneralSuggestionsSchema.parse(parsed);
 }

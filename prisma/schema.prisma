@@ -23,6 +23,7 @@ model User {
   sessions      Session[]
 
   matchedSuggestions MatchedSuggestion[]
+  generalSuggestions GeneralSuggestion[]
   matchesAsUser Match[]          @relation("UserMatches")
 }
 
@@ -42,7 +43,8 @@ model Relative {
   id                String @id @default(cuid())
   userId            String
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name             String 
+  name              String 
+  email             String?
 
   preferences       String[]
   dislikes          String[]
@@ -126,6 +128,33 @@ model Event {
   @@index([startTime])
 }
 
+
+
+
+//
+// ACTIVITY SUGGESTIONS
+//
+
+model GeneralSuggestion {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  summary   String
+  benefit   String
+  metadata  Json?
+  accepted  Boolean  @default(false)
+  status    SuggestionStatus @default(pending)
+  decisionAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+
 model MatchedSuggestion {
   id          String   @id @default(cuid())
   userId      String
@@ -141,4 +170,9 @@ model MatchedSuggestion {
 
   @@unique([userId, eventId])
   @@index([userId])
+}
+enum SuggestionStatus {
+  pending
+  accepted
+  rejected
 }
