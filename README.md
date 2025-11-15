@@ -72,28 +72,7 @@ test the python api by opening localhost:8000 with the corresponding path.
 
 #### event-based suggestions
 
-`scripts/ingest-espoo.ts` now seeds ~`ESPOO_EVENTS_LIMIT` Espoo events the first time `docker compose up web` runs. Subsequent executions no-op unless you set `ESPOO_FORCE_REFRESH=true`, allowing the Linked Events cron job to be simulated without hammering the API locally.
-
-Every authenticated request passes through a middleware that calls an internal endpoint to ensure each user has at least `MATCHED_SUGGESTION_TARGET` rows in the `MatchedSuggestion` table. When the count falls below that threshold the middleware starts a background job that:
-
-1. Loads the user’s normalized preferences from onboarding.
-2. Pulls up to `MATCHED_SUGGESTION_EVENT_LIMIT` upcoming Espoo events from the local catalog.
-3. Sends those events to Featherless in batches of `MATCHED_SUGGESTION_MODEL_BATCH`, asking for the best matches.
-4. Saves the model’s selections in `MatchedSuggestion` with confidence scores. The generator now enforces a `MATCHED_SUGGESTION_LOOKAHEAD_DAYS` rolling window (default 7 days) and caps how many fresh picks land on the same day (`MATCHED_SUGGESTION_MAX_PER_DAY`, default 3) so the calendar view isn’t dominated by a single weekend.
-
-The middleware annotates downstream requests with the job status so the UI knows when to poll again. `/api/suggestions` replaces the old `/api/espoo-suggestions` route and returns both the ranked events and a meta block describing `{status, missing, target}`. The dashboard slices the top 3 by confidence, while `/suggestions` shows the full set of 10 once the backfill finishes; both pages auto-refresh whenever the middleware reports that a refill is running.
-
-Request it manually with:
-
-```bash
-curl -X POST http://localhost:3000/api/suggestions \
-  -H "Content-Type: application/json" \
-  -d '{"email":"demo@example.com"}'
-```
-
-`MATCHED_SUGGESTION_GATEWAY_TOKEN` must be set (any long random string works) so the middleware can authenticate the internal `/api/internal/suggestions/ensure` calls that kick off these background jobs.
-
-Set `MATCHED_SUGGESTION_ENSURE_CACHE_MS` (default 5000) if you need to adjust how long the middleware caches a “still filling” result before it pings the internal endpoint again—handy when someone keeps refreshing the page. Use `MATCHED_SUGGESTION_LOOKAHEAD_DAYS` and `MATCHED_SUGGESTION_MAX_PER_DAY` to tweak the new distribution logic if you need a different cadence.
+The previous Espoo Linked Events workflow (middleware, background jobs, cached suggestions, etc.) has been removed. The dashboard, calendar, and suggestions pages now render placeholder content only so you can rebuild a new flow from scratch without having to unwind any of the old logic.
 
 ### Development
 

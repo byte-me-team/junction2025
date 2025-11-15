@@ -47,13 +47,14 @@ export async function createMatch(user1Id: string, user2Id: string) {
   const suggestions: JointActivities =
     await callFeatherlessJointActivities(prefs1, prefs2);
 
-  return prisma.match.create({
-    data: {
-      user1Id,
-      user2Id,
-      user1Preferences: prefs1,
-      user2Preferences: prefs2,
-      suggestionsJson: suggestions,
-    },
-  });
+    return null
+  // return prisma.match.create({
+  //   data: {
+  //     user1Id,
+  //     user2Id,
+  //     user1Preferences: prefs1,
+  //     user2Preferences: prefs2,
+  //     suggestionsJson: suggestions,
+  //   },
+  // });
 }
