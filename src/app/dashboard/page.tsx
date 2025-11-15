@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+<<<<<<< HEAD
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MatchedSuggestion,
@@ -8,6 +9,9 @@ import {
   fetchMatchedSuggestions,
   markSuggestionAttendance,
 } from "@/lib/client/matched-suggestions";
+=======
+import { useEffect, useRef, useState } from "react";
+>>>>>>> main
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { formatConfidence, formatEventDate } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
@@ -284,9 +288,11 @@ export default function DashboardPage() {
               Soon you will be able to share a link for shared onboarding. For
               now this is just a placeholder section.
             </p>
-            <Button className="mt-4" variant="outline" disabled>
+            <Button asChild variant="outline" className="mt-4">
+            <Link href="/invite" className="font-medium text-primary">
               Generate invite link
-            </Button>
+            </Link>
+          </Button>
           </div>
           <div
             id="reminders"
