@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useSession } from "next-auth/react"
 import * as React from "react"
 
 import { SearchForm } from "@/components/search-form"
@@ -42,6 +43,7 @@ const baseSections: NavSection[] = [
   {
     title: "Suggestions",
     items: [
+      { title: "All suggestions", url: "/suggestions" },
       { title: "Activity feed", url: "#feed", disabled: true },
       { title: "Shared plans", url: "#plans", disabled: true },
     ],
@@ -128,4 +130,3 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   )
 }
-import { useSession } from "next-auth/react"

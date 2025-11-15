@@ -5,9 +5,7 @@ import { prisma } from "../src/lib/prisma";
 const API_BASE = "https://api.hel.fi/linkedevents/v1/event/";
 const WINDOW_DAYS = Number(process.env.ESPOO_EVENTS_WINDOW_DAYS ?? "10");
 const MAX_EVENTS = Number(process.env.ESPOO_EVENTS_LIMIT ?? "200");
-const RETENTION_DAYS = Number(
-  process.env.ESPOO_EVENTS_RETENTION_DAYS ?? "30"
-);
+const FORCE_REFRESH = process.env.ESPOO_FORCE_REFRESH === "true";
 
 type LocalizedField = {
   fi?: string | null;
@@ -89,18 +87,12 @@ function isEspooEvent(event: EspooEvent) {
 }
 
 async function main() {
-  const now = new Date();
-  let removed = 0;
-  if (RETENTION_DAYS >= 0) {
-    const cutoff = new Date(
-      now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000
+  const existingCount = await prisma.event.count();
+  if (existingCount > 0 && !FORCE_REFRESH) {
+    console.log(
+      `Espoo events already cached locally (${existingCount} rows). Skipping ingest (set ESPOO_FORCE_REFRESH=true to override).`
     );
-    const result = await prisma.event.deleteMany({
-      where: {
-        startTime: { lt: cutoff },
-      },
-    });
-    removed = result.count;
+    return;
   }
 
   const events = await fetchEspooEvents();
@@ -132,7 +124,7 @@ async function main() {
     upserts += 1;
   }
 
-  console.log(`Upserted ${upserts} events. Removed ${removed} old events.`);
+  console.log(`Upserted ${upserts} events into the catalog.`);
 }
 
 function normalizeEvent(event: EspooEvent) {

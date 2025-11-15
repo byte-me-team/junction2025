@@ -30,7 +30,7 @@ docker compose up web
 
 This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, syncs the database, ingests the next few days of Espoo events, and starts the Next.js dev server on port 3000.
 
-You can refresh the event catalog manually at any time (set `ESPOO_EVENTS_WINDOW_DAYS` to control the lookahead window, `ESPOO_EVENTS_LIMIT` to cap the fetch size, and `ESPOO_EVENTS_RETENTION_DAYS` to control how long past events stay in the table before being purged). `ESPOO_EVENTS_MODEL_LIMIT` caps how many candidates are sent to Featherless per call, and `ESPOO_SUGGESTION_CACHE_TTL_HOURS` configures how long AI results stay cached before we regenerate them:
+You can refresh the event catalog manually at any time (`ESPOO_EVENTS_WINDOW_DAYS` controls the lookahead window and `ESPOO_EVENTS_LIMIT` caps the fetch size). By default the ingest script skips work once events exist; set `ESPOO_FORCE_REFRESH=true` in `.env` if you need a fresh pull for debugging:
 
 ```bash
 npm run ingest:events
@@ -72,22 +72,28 @@ test the python api by opening localhost:8000 with the corresponding path.
 
 #### event-based suggestions
 
-The Espoo ingest script stores upcoming events in the `Event` table. Hit `/api/espoo-suggestions` with a user email to have Featherless rank those events against the user’s normalized preferences. Requests first check the cache and only call the LLM when the stored results are older than `ESPOO_SUGGESTION_CACHE_TTL_HOURS`, and the ranking query now limits candidates to the configured lookahead window (`ESPOO_EVENTS_WINDOW_DAYS`) to avoid stale suggestions. The full workflow is:
+`scripts/ingest-espoo.ts` now seeds ~`ESPOO_EVENTS_LIMIT` Espoo events the first time `docker compose up web` runs. Subsequent executions no-op unless you set `ESPOO_FORCE_REFRESH=true`, allowing the Linked Events cron job to be simulated without hammering the API locally.
 
-1. `docker compose up web` runs `scripts/ingest-espoo.ts`, which fetches ~`ESPOO_EVENTS_LIMIT` events, stores them in `Event`, and indexes by `startTime`.
-2. Dashboard load (or any POST to `/api/espoo-suggestions`) normalizes the user’s preferences during onboarding, then:
-   - Checks `EspooSuggestionCache` for a fresh result.
-   - If missing/stale, slices the next `ESPOO_EVENTS_MODEL_LIMIT` events and calls Featherless once per user at a time.
-   - Successful responses get persisted to the cache; temporary fallbacks (e.g., concurrency errors) return stub cards plus a retry hint so the client can re-fetch automatically.
-3. The dashboard fetcher keeps a cache key per user email, shows skeleton loaders until the first response arrives, and auto-retries when the API reports a fallback so real AI matches replace the placeholder cards without a manual refresh.
+Every authenticated request passes through a middleware that calls an internal endpoint to ensure each user has at least `MATCHED_SUGGESTION_TARGET` rows in the `MatchedSuggestion` table. When the count falls below that threshold the middleware starts a background job that:
+
+1. Loads the user’s normalized preferences from onboarding.
+2. Pulls up to `MATCHED_SUGGESTION_EVENT_LIMIT` upcoming Espoo events from the local catalog.
+3. Sends those events to Featherless in batches of `MATCHED_SUGGESTION_MODEL_BATCH`, asking for the best matches.
+4. Saves any returned matches (or fallback placeholders) in `MatchedSuggestion` with confidence scores and reasons.
+
+The middleware annotates downstream requests with the job status so the UI knows when to poll again. `/api/suggestions` replaces the old `/api/espoo-suggestions` route and returns both the ranked events and a meta block describing `{status, missing, target}`. The dashboard slices the top 3 by confidence, while `/suggestions` shows the full set of 10 once the backfill finishes; both pages auto-refresh whenever the middleware reports that a refill is running.
+
+Request it manually with:
 
 ```bash
-curl -X POST http://localhost:3000/api/espoo-suggestions \
+curl -X POST http://localhost:3000/api/suggestions \
   -H "Content-Type: application/json" \
   -d '{"email":"demo@example.com"}'
 ```
 
-Responses include the model’s recommended event IDs, titles, and reasons so you can plug them into the dashboard UI.
+`MATCHED_SUGGESTION_GATEWAY_TOKEN` must be set (any long random string works) so the middleware can authenticate the internal `/api/internal/suggestions/ensure` calls that kick off these background jobs.
+
+Set `MATCHED_SUGGESTION_ENSURE_CACHE_MS` (default 5000) if you need to adjust how long the middleware caches a “still filling” result before it pings the internal endpoint again—handy when someone keeps refreshing the page.
 
 ### Development
 

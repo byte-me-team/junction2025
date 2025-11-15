@@ -1,6 +1,8 @@
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import type { OnboardingState } from "@/lib/onboarding-store";
 
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     const passwordHash = await hash(password, 10);
 
     const onboardingPreferences = body.onboarding?.preferences;
-    const sanitizedOnboarding: Record<string, unknown> | null = body.onboarding
+    const sanitizedOnboarding: Prisma.JsonValue | null = body.onboarding
       ? {
           ...body.onboarding,
           basicInfo: {
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
           ? {
               create: {
                 rawText: JSON.stringify(onboardingPreferences),
-                normalizedJson: sanitizedOnboarding,
+                normalizedJson: sanitizedOnboarding ?? Prisma.JsonNull,
               },
             }
           : undefined,
