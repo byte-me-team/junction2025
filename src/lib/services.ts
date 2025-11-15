@@ -27,38 +27,43 @@ export async function saveUserPreferences(
     },
   });
 }
-
-export async function createMatch(user1Id: string, user2Id: string) {
-  if (user1Id === user2Id) {
-    throw new Error("Cannot match a user with themselves");
-  }
-
-  const [p1, p2] = await Promise.all([
-    prisma.userPreferences.findUnique({ where: { userId: user1Id } }),
-    prisma.userPreferences.findUnique({ where: { userId: user2Id } }),
+export async function createMatch(userId: string, relativeId: string) {
+  const [user, relative] = await Promise.all([
+    prisma.userPreferences.findUnique({
+      where: { userId },
+    }),
+    prisma.relative.findUnique({
+      where: { id: relativeId },
+    }),
   ]);
 
-  if (!p1 || !p2) {
+  if (!user || !relative) {
     throw new Error("Both users must have preferences saved first");
   }
 
-  const prefs1 = p1.normalizedJson as NormalizedPreferences;
-  const prefs2 = p2.normalizedJson as NormalizedPreferences;
+  const userPref = user.normalizedJson as NormalizedPreferences;
+
+  const relPref: NormalizedPreferences = {
+    interests: (relative.preferences ?? []).map((item: string) => ({
+      label: item,
+    })),
+  };
 
   const suggestions: JointActivities =
-    await callFeatherlessJointActivities(prefs1, prefs2);
+  await callFeatherlessJointActivities(userPref, relPref);
 
-    return null
-  // return prisma.match.create({
-  //   data: {
-  //     user1Id,
-  //     user2Id,
-  //     user1Preferences: prefs1,
-  //     user2Preferences: prefs2,
-  //     suggestionsJson: suggestions,
-  //   },
-  // });
+  return prisma.match.create({
+    data: {
+      userId,
+      relativeId,
+      user1Preferences: userPref,
+      user2Preferences: relPref,
+      suggestionsJson: suggestions,
+    },
+  });
 }
+
+
 
 export async function generateGeneralSuggestionsForEmail(email: string) {
   const user = await prisma.user.findUnique({

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function CreateMatchModal({
   userId,
@@ -14,10 +13,8 @@ export default function CreateMatchModal({
   relativeId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [matchId, setMatchId] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const router = useRouter();
 
   async function handleCreateMatch() {
     setStatus("loading");
@@ -38,7 +35,6 @@ export default function CreateMatchModal({
         return;
       }
 
-      setMatchId(data.id)
       setStatus("success");
     } catch (err) {
       console.error(err);
@@ -49,16 +45,26 @@ export default function CreateMatchModal({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        Create Match
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          setStatus("idle");
+          setOpen(true);
+        }}
+      >
+        Hang out!
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Creating Match</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              Creating Match
+            </DialogTitle>
           </DialogHeader>
 
+          {/* Loading */}
           {status === "loading" && (
             <div className="flex flex-col items-center text-center py-6">
               <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
@@ -68,6 +74,7 @@ export default function CreateMatchModal({
             </div>
           )}
 
+          {/* Success */}
           {status === "success" && (
             <div className="flex flex-col items-center text-center py-6">
               <CheckCircle2 className="h-10 w-10 text-green-600 mb-3" />
@@ -80,7 +87,7 @@ export default function CreateMatchModal({
                 className="w-full"
                 onClick={() => {
                   setOpen(false);
-                  router.push(`/matches/${matchId}`);
+                  window.location.href = `/matches`;
                 }}
               >
                 View Suggestions
@@ -88,6 +95,7 @@ export default function CreateMatchModal({
             </div>
           )}
 
+          {/* Error */}
           {status === "error" && (
             <div className="flex flex-col items-center text-center py-6">
               <XCircle className="h-10 w-10 text-red-600 mb-3" />
@@ -100,6 +108,7 @@ export default function CreateMatchModal({
             </div>
           )}
 
+          {/* Idle */}
           {status === "idle" && (
             <div className="flex flex-col items-center text-center py-6">
               <p className="text-sm text-muted-foreground mb-5">

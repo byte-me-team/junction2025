@@ -22,16 +22,15 @@ export const NormalizedPreferencesSchema = z.object({
 
 export type NormalizedPreferences = z.infer<typeof NormalizedPreferencesSchema>;
 
-const JointActivitySchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  why_it_matches: z.string(),
-  uses_user1_interests: z.array(z.string()),
-  uses_user2_interests: z.array(z.string()),
-});
-
 export const JointActivitiesSchema = z.object({
-  activities: z.array(JointActivitySchema),
+  activities: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+      location: z.string(),
+      possible_date: z.string(),
+    })
+  ),
 });
 
 export type JointActivities = z.infer<typeof JointActivitiesSchema>;
@@ -209,10 +208,20 @@ Return JSON only. No backticks, no code fences, no commentary.
 }
 
 const MATCH_SYSTEM_INSTRUCTIONS = `
-You generate shared activity suggestions between two people.
+You are a cheerful guide whose job is to encourage older adults to be physically and socially active.
+You will receive two people's interests and dislikes, generate THREE activity ideas for them to do together.
+Make sure they include some form of movement and leaving the house. You can make them try new things as often as their
+adventourousness trait allows. Make sure it is relevant to the city and date they are in.
+
+Formatting constraints:
+- Each title must start with a relevant emoji and stay under 6 words.
+- Summaries should be 1 short sentence (max ~25 words) focused on actually going out.
+- "benefit" should be a single upbeat sentence (max 16 words) spelling out the positive outcome.
+- mood / ideal_time / companion_tip must be ultra-short taglines (max 5 words). Use words only (no emoji or special unicode here to keep the JSON simple).
+- Avoid repeating recently rejected titles, and lean into themes that match their approved history.
 
 Input:
-Two JSON objects, each containing a person's normalized interests.
+Three JSON objects, each containing an activity.
 
 Output:
 Valid JSON ONLY:
@@ -221,9 +230,8 @@ Valid JSON ONLY:
     {
       "title": string,
       "description": string,
-      "why_it_matches": string,
-      "uses_user1_interests": string[],
-      "uses_user2_interests": string[]
+      "location": string,
+      "possible_date": string
     }
   ]
 }

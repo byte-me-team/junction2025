@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { Button } from "@/components/ui/button";
+import CreateMatchModal from "@/components/create-match-modal";
 
 type Relative = {
   id: string;
@@ -62,78 +63,90 @@ export default function RelativesPage() {
       <AppSidebar />
       <SidebarInset className="flex min-h-screen flex-1 flex-col bg-background">
         <TopBar />
-            <main className="bg-background">
-            <section className="mx-auto w-full max-w-5xl px-6 py-10">
-                <div className="mb-8 space-y-1">
-                <p className="text-sm font-semibold text-primary">
-                    Hello, {user.name || user.email}
-                </p>
-                <h1 className="text-3xl font-semibold">Your relatives</h1>
-                <p className="text-base text-muted-foreground">
-                    Add or view relatives and their preferences.
-                </p>
-                </div>
 
-                {isLoadingRelatives && (
-                <p className="text-sm text-muted-foreground">Loading relatives…</p>
-                )}
+        <main className="bg-background">
+          <section className="mx-auto w-full max-w-5xl px-6 py-10">
+            <div className="mb-8 space-y-1">
+              <p className="text-sm font-semibold text-primary">
+                Hello, {user.name || user.email}
+              </p>
+              <h1 className="text-3xl font-semibold">Your relatives</h1>
+              <p className="text-base text-muted-foreground">
+                Add or view relatives and their preferences.
+              </p>
+            </div>
 
-                {error && (
-                <p className="text-sm text-destructive mb-4">{error}</p>
-                )}
+            {isLoadingRelatives && (
+              <p className="text-sm text-muted-foreground">Loading relatives…</p>
+            )}
 
-                {!isLoadingRelatives && relatives.length === 0 && (
-                <p className="text-sm text-muted-foreground mb-4">
-                    You have no relatives added yet.
-                </p>
-                )}
+            {error && (
+              <p className="text-sm text-destructive mb-4">{error}</p>
+            )}
 
-                <div className="grid gap-4">
-                {relatives.map((relative) => (
-                    <article
-                    key={relative.id}
-                    className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm"
-                    >
-                    <div className="flex justify-between items-center">
-                        <div>
-                        <h2 className="text-xl font-semibold">{decodeURIComponent(relative.name)}</h2>
-                        <p className="text-sm text-muted-foreground mt-1">
+            {!isLoadingRelatives && relatives.length === 0 && (
+              <p className="text-sm text-muted-foreground mb-4">
+                You have no relatives added yet.
+              </p>
+            )}
+
+            <div className="grid gap-4">
+              {relatives.map((relative) => (
+                <article
+                  key={relative.id}
+                  className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-xl font-semibold">
+                        {decodeURIComponent(relative.name)}
+                      </h2>
+
+                      <p className="text-sm text-muted-foreground mt-2 mb-2">
                         Preferences:{" "}
-                        {relative.preferences?.length
-                          ? relative.preferences.map(x => {
-                            return <Badge className="mx-2"> {x} </Badge>
-                          })
-                          : "None"}
+                        {relative.preferences?.length ? (
+                          relative.preferences.map((x) => (
+                            <Badge key={x} className="mx-1">
+                              {x}
+                            </Badge>
+                          ))
+                        ) : (
+                          "None"
+                        )}
                       </p>
 
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-2 mb-2">
                         Dislikes:{" "}
-                        {relative.dislikes?.length
-                          ? relative.dislikes.map(x => {
-                            return <Badge className="mx-2" variant="destructive"> {x} </Badge>
-                          })
-                          : "None"}
+                        {relative.dislikes?.length ? (
+                          relative.dislikes.map((x) => (
+                            <Badge key={x} className="mx-1" variant="destructive">
+                              {x}
+                            </Badge>
+                          ))
+                        ) : (
+                          "None"
+                        )}
                       </p>
-                        </div>
-                        <Button asChild size="sm" variant="outline">
-                        <Link href={`/activity/${user.id}/${relative.name}`}>
-                            Hang out!
-                        </Link>
-                        </Button>
                     </div>
-                    </article>
-                ))}
-                </div>
 
-                <div className="mt-10">
-                <Button asChild variant="secondary">
-                    <Link href="/dashboard">Back to Dashboard</Link>
-                </Button>
-                </div>
-            </section>
+                    {/* 🌟 Modal appears on click */}
+                    <CreateMatchModal
+                      userId={user.id}
+                      relativeId={relative.id}
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-10">
+              <Button asChild variant="secondary">
+                <Link href="/dashboard">Back to Dashboard</Link>
+              </Button>
+            </div>
+          </section>
         </main>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-
