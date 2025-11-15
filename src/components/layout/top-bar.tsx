@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 
-import { useAuth } from "@/components/auth/auth-context"
 import { ModeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useSession } from "next-auth/react"
 
 export const TopBar = () => {
-  const { user } = useAuth()
+  const { data: session } = useSession()
+  const user = session?.user
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-border/60 bg-background/70 px-4 sm:px-6">

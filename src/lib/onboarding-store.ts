@@ -4,6 +4,8 @@ export type SocialPreference = "alone" | "small_group" | "family" | "any";
 export type BasicInfo = {
   name: string;
   email: string;
+  password: string;
+  city: string;
 };
 
 export type PreferenceInfo = {
@@ -24,6 +26,8 @@ export const createEmptyOnboardingState = (): OnboardingState => ({
   basicInfo: {
     name: "",
     email: "",
+    password: "",
+    city: "",
   },
   preferences: {
     enjoyList: [],

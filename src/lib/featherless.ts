@@ -1,9 +1,6 @@
 import { z } from "zod";
 
 const FEATHERLESS_API_KEY = process.env.FEATHERLESS_API_KEY;
-if (!FEATHERLESS_API_KEY) {
-  throw new Error("FEATHERLESS_API_KEY is not set");
-}
 
 const FEATHERLESS_BASE_URL = "https://api.featherless.ai/v1/completions";
 const MODEL_NAME = "Qwen/Qwen2.5-72B-Instruct";
@@ -39,6 +36,36 @@ export const JointActivitiesSchema = z.object({
 
 export type JointActivities = z.infer<typeof JointActivitiesSchema>;
 
+const EventRecommendationSchema = z.object({
+  event_id: z.string(),
+  title: z.string(),
+  reason: z.string(),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .catch(0.5),
+});
+
+export const EventSuggestionsSchema = z.object({
+  recommendations: z.array(EventRecommendationSchema),
+});
+
+export type EventSuggestions = z.infer<typeof EventSuggestionsSchema>;
+
+export type EventCandidate = {
+  id: string;
+  title: string;
+  summary?: string | null;
+  description?: string | null;
+  start_time: string;
+  end_time?: string | null;
+  location?: string | null;
+  tags?: string[];
+  price?: string | null;
+  source_url?: string | null;
+};
+
 // ------------- Low-level HTTP caller -------------
 
 function extractJsonObject(text: string): string {
@@ -66,33 +93,67 @@ export class FeatherlessConcurrencyError extends Error {
   }
 }
 
+export class FeatherlessMissingApiKeyError extends Error {
+  constructor() {
+    super("FEATHERLESS_API_KEY is not set. Add it to your environment to enable Featherless integrations.");
+    this.name = "FeatherlessMissingApiKeyError";
+  }
+}
+
+const FEATHERLESS_TIMEOUT_MS = Number(
+  process.env.FEATHERLESS_TIMEOUT_MS ?? "45000"
+);
+
 async function callFeatherlessRaw(prompt: string): Promise<string> {
-  const res = await fetch(FEATHERLESS_BASE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL_NAME,
-      prompt,
-      max_tokens: 1500,
-    }),
-  });
+  if (!FEATHERLESS_API_KEY) {
+    throw new FeatherlessMissingApiKeyError();
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FEATHERLESS_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(FEATHERLESS_BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        prompt,
+        max_tokens: 1500,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    if ((error as Error)?.name === "AbortError") {
+      throw new Error(
+        `Featherless request timed out after ${FEATHERLESS_TIMEOUT_MS}ms`
+      );
+    }
+    throw error;
+  }
+
+  clearTimeout(timeout);
 
   const text = await res.text().catch(() => "");
 
   if (!res.ok) {
+    let parsed: any;
     try {
-      const json = JSON.parse(text);
-      const code = json?.error?.code;
-      const message = json?.error?.message ?? text;
-
-      if (code === "concurrency_limit_exceeded") {
-        throw new FeatherlessConcurrencyError(message);
-      }
+      parsed = JSON.parse(text);
     } catch {
-      // ignore JSON parse error, fall through to generic error
+      parsed = null;
+    }
+
+    const code = parsed?.error?.code;
+    const message = parsed?.error?.message ?? text;
+
+    if (code === "concurrency_limit_exceeded") {
+      throw new FeatherlessConcurrencyError(message);
     }
 
     throw new Error(
@@ -213,4 +274,81 @@ Return JSON only. No backticks, no code fences, no commentary.
   }
 
   return JointActivitiesSchema.parse(parsed);
+}
+
+const EVENT_MATCH_SYSTEM_INSTRUCTIONS = `
+You are a cultural concierge. Given a person's structured preferences and a set of candidate events, recommend the most relevant events for the next week. Consider tags, descriptions, timing, location, and accessibility cues. Assign each recommendation a confidence score between 0 and 1 (0 = weak match, 1 = perfect match). Return JSON ONLY:
+{
+  "recommendations": [
+    {
+      "event_id": string, // must match the provided event id
+      "title": string, // human readable title or summary
+      "reason": string, // short explanation personalized to the user
+      "confidence": number // required 0-1 confidence score
+    }
+  ]
+}
+`.trim();
+
+export async function callFeatherlessEventSuggestions(
+  userPrefs: NormalizedPreferences,
+  events: EventCandidate[]
+): Promise<EventSuggestions> {
+  if (!events.length) {
+    throw new Error("No events provided to Featherless");
+  }
+
+  const startedAt = Date.now();
+  console.info("[Featherless][events] Sending candidate batch", {
+    candidateCount: events.length,
+  });
+
+  const payload = events.map((evt) => ({
+    event_id: evt.id,
+    title: evt.title,
+    summary: evt.summary ?? evt.description ?? null,
+    start_time: evt.start_time,
+    end_time: evt.end_time ?? null,
+    location: evt.location ?? null,
+    price: evt.price ?? null,
+    tags: (evt.tags ?? []).slice(0, 8),
+    source_url: evt.source_url ?? null,
+  }));
+
+  const fullPrompt = `
+${EVENT_MATCH_SYSTEM_INSTRUCTIONS}
+
+User preferences:
+${JSON.stringify(userPrefs, null, 2)}
+
+Candidate events:
+${JSON.stringify(payload, null, 2)}
+
+Always choose events from the provided list. No new events. Return JSON only, without backticks.
+  `.trim();
+
+  const output = await callFeatherlessRaw(fullPrompt);
+  console.info("[Featherless][events] Raw completion received", {
+    durationMs: Date.now() - startedAt,
+  });
+  const jsonString = extractJsonObject(output);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch (err) {
+    throw new Error(
+      "Failed to parse event suggestions JSON: " +
+        (err as Error).message +
+        "\nHere is the output: " +
+        output
+    );
+  }
+
+  const validated = EventSuggestionsSchema.parse(parsed);
+  console.info("[Featherless][events] Parsed recommendations", {
+    recommendationCount: validated.recommendations.length,
+  });
+
+  return validated;
 }

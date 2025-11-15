@@ -3,31 +3,62 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 import { LoginForm } from "@/components/login-form";
-import { useAuth } from "@/components/auth/auth-context";
 import { MarketingHeader } from "@/components/layout/marketing-header";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = email.trim();
     const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+
     if (!isValid) {
-      setError("Please enter a valid email.");
+      setEmailError("Please enter a valid email.");
       return;
     }
-    setError(null);
-    const nextUser = signIn(trimmed);
-    if (nextUser.onboarding) {
+
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setEmailError(null);
+    setPasswordError(null);
+    setFormError(null);
+    setIsSubmitting(true);
+
+    try {
+      const result = await signIn("credentials", {
+        email: trimmed,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        const message =
+          result.error === "CredentialsSignin"
+            ? "Invalid email or password."
+            : "Unable to sign in. Please try again.";
+        setFormError(message);
+        return;
+      }
+
       router.push("/dashboard");
-    } else {
-      router.push("/onboarding");
+    } catch (error) {
+      console.error("Failed to sign in", error);
+      setFormError("Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -37,13 +68,23 @@ export default function SignInPage() {
       <section className="mx-auto w-full max-w-lg px-4 py-12 sm:px-6 lg:px-8">
         <LoginForm
           email={email}
-          error={error}
+          password={password}
+          emailError={emailError}
+          passwordError={passwordError}
+          formError={formError}
+          isSubmitting={isSubmitting}
           onEmailChange={(value) => {
-            if (error) setError(null);
+            if (emailError) setEmailError(null);
+            if (formError) setFormError(null);
             setEmail(value);
           }}
+          onPasswordChange={(value) => {
+            if (passwordError) setPasswordError(null);
+            if (formError) setFormError(null);
+            setPassword(value);
+          }}
           onSubmit={handleSubmit}
-          supportingText="We'll route you to onboarding if we don't detect a stored profile."
+          supportingText="Use the email and password you created during onboarding."
           footer={
             <p className="text-center text-sm text-muted-foreground">
               First time here?{" "}

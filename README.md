@@ -12,7 +12,7 @@ Copy `.env.example` to `.env` and adjust the values as needed:
 cp .env.example .env
 ```
 
-`DATABASE_URL` points to your local Postgres instance (e.g. `localhost`), while `DATABASE_URL_DOCKER` keeps the containers wired to the in-compose `db` service. Update `NEXT_PUBLIC_APP_URL` if you expose the frontend on a different hostname.
+`DATABASE_URL` points to your local Postgres instance (e.g. `localhost`), while `DATABASE_URL_DOCKER` keeps the containers wired to the in-compose `db` service. Update `NEXT_PUBLIC_APP_URL` if you expose the frontend on a different hostname. `NEXTAUTH_URL` should match the public origin (e.g. `http://localhost:3000`) and `NEXTAUTH_SECRET` must be a long random string (generate via `openssl rand -base64 32`).
 
 #### add Featherless.ai api key
 
@@ -28,7 +28,25 @@ to start the server run:
 docker compose up web
 ```
 
-This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, and starts the Next.js dev server on port 3000.
+This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, syncs the database, ingests the next few days of Espoo events, and starts the Next.js dev server on port 3000.
+
+You can refresh the event catalog manually at any time (set `ESPOO_EVENTS_WINDOW_DAYS` to control the lookahead window, `ESPOO_EVENTS_LIMIT` to cap the fetch size, and `ESPOO_EVENTS_RETENTION_DAYS` to control how long past events stay in the table before being purged). `ESPOO_EVENTS_MODEL_LIMIT` caps how many candidates are sent to Featherless per call, and `ESPOO_SUGGESTION_CACHE_TTL_HOURS` configures how long AI results stay cached before we regenerate them:
+
+```bash
+npm run ingest:events
+```
+
+#### authentication
+
+Real authentication is now powered by Auth.js + Prisma. The onboarding form creates a user record (with a bcrypt-hashed password) and the API route `/api/auth/[...nextauth]` manages sessions. To test sign-in manually you can also call the credentials endpoint via `curl`:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"supersafepassword","name":"Demo"}'
+```
+
+Then log in with the UI or via `curl --request POST http://localhost:3000/api/auth/callback/credentials ...` if needed.
 
 ### create an encryption key
 
@@ -51,6 +69,18 @@ docker compose up studio
 You can also run `docker compose up` without arguments to bring up `db`, `web`, and `studio` simultaneously. Once studio is running, open [http://localhost:5555](http://localhost:5555) to explore the database.
 
 test the python api by opening localhost:8000 with the corresponding path.
+
+#### event-based suggestions
+
+The Espoo ingest script stores upcoming events in the `Event` table. Hit `/api/espoo-suggestions` with a user email to have Featherless rank those events against the user’s normalized preferences:
+
+```bash
+curl -X POST http://localhost:3000/api/espoo-suggestions \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com"}'
+```
+
+Responses include the model’s recommended event IDs, titles, and reasons so you can plug them into the dashboard UI.
 
 ### Development
 

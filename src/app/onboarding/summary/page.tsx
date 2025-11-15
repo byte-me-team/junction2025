@@ -2,26 +2,29 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
+
 import { useOnboarding } from "@/components/onboarding/onboarding-provider";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/auth/auth-context";
-
-const saveOnboardingPlaceholder = async () => {
-  // TODO: POST onboarding payload to /api/v1/onboarding when backend exists
-  return Promise.resolve();
-};
 
 export default function OnboardingSummaryPage() {
   const router = useRouter();
-  const { state } = useOnboarding();
-  const { signIn } = useAuth();
+  const { state, reset } = useOnboarding();
+  const { status } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!state.basicInfo.email) {
       router.replace("/onboarding");
     }
   }, [state.basicInfo.email, router]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
 
   const labels = useMemo(
     () => ({
@@ -51,14 +54,54 @@ export default function OnboardingSummaryPage() {
       router.push("/onboarding");
       return;
     }
+    if (state.basicInfo.password.length < 8) {
+      setError("Your password must be at least 8 characters.");
+      return;
+    }
+
+    setError(null);
     setIsSubmitting(true);
-    await saveOnboardingPlaceholder();
-    signIn(state.basicInfo.email, {
-      name: state.basicInfo.name,
-      onboarding: state,
-    });
-    setIsSubmitting(false);
-    router.push("/dashboard");
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: state.basicInfo.name,
+          email: state.basicInfo.email,
+          password: state.basicInfo.password,
+          city: state.basicInfo.city,
+          onboarding: state,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        setError(payload?.error ?? "Unable to save your account.");
+        return;
+      }
+
+      const result = await signIn("credentials", {
+        email: state.basicInfo.email,
+        password: state.basicInfo.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Account created, but we couldn't sign you in automatically.");
+        return;
+      }
+
+      reset();
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Failed to save onboarding", err);
+      setError("Something went wrong while saving your profile.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -70,8 +113,8 @@ export default function OnboardingSummaryPage() {
           </p>
           <h1 className="text-3xl font-semibold">Review & confirm</h1>
           <p className="text-base text-muted-foreground">
-            Make sure things look right before we save them locally and later push
-            them to the backend.
+            Make sure things look right before we save them to your secure
+            account in the database.
           </p>
         </div>
 
@@ -87,6 +130,10 @@ export default function OnboardingSummaryPage() {
               </p>
               <p>
                 <span className="font-semibold">Email:</span> {state.basicInfo.email}
+              </p>
+              <p>
+                <span className="font-semibold">City:</span> {" "}
+                {state.basicInfo.city || "Not provided"}
               </p>
             </div>
           </div>
@@ -147,7 +194,10 @@ export default function OnboardingSummaryPage() {
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {error && (
+            <p className="text-sm font-medium text-destructive">{error}</p>
+          )}
           <Button
             variant="outline"
             onClick={() => router.push("/onboarding/preferences")}

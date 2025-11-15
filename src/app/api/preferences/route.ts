@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { saveUserPreferences } from "@/lib/services";
-import { FeatherlessConcurrencyError } from "@/lib/featherless";
+import {
+  FeatherlessConcurrencyError,
+  FeatherlessMissingApiKeyError,
+} from "@/lib/featherless";
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,10 +56,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (err instanceof FeatherlessMissingApiKeyError) {
+      return NextResponse.json(
+        {
+          error:
+            "FEATHERLESS_API_KEY is missing. Add it to your .env to run the matching prototype.",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to save preferences" },
       { status: 500 }
     );
   }
 }
-

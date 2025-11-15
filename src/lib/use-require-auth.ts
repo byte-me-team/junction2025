@@ -2,17 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useAuth } from "@/components/auth/auth-context";
+import { useSession } from "next-auth/react";
 
 export const useRequireAuth = (redirectPath = "/auth/sign-in") => {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (status === "unauthenticated") {
       router.replace(redirectPath);
     }
-  }, [user, isLoading, router, redirectPath]);
+  }, [status, router, redirectPath]);
 
-  return { user, isLoading };
+  return {
+    user: session?.user ?? null,
+    isLoading: status === "loading",
+  };
 };
