@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { Button } from "@/components/ui/button";
@@ -109,9 +110,11 @@ export default function DashboardPage() {
               Soon you will be able to share a link for shared onboarding. For
               now this is just a placeholder section.
             </p>
-            <Button className="mt-4" variant="outline" disabled>
+            <Button asChild variant="outline" className="mt-4">
+            <Link href="/invite" className="font-medium text-primary">
               Generate invite link
-            </Button>
+            </Link>
+          </Button>
           </div>
           <div
             id="reminders"
