@@ -59,11 +59,6 @@ export default function RelativesPage() {
   if (!user) return null;
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="flex min-h-screen flex-1 flex-col bg-background">
-        <TopBar />
-
         <main className="bg-background">
           <section className="mx-auto w-full max-w-5xl px-6 py-10">
             <div className="mb-8 space-y-1">
@@ -145,7 +140,5 @@ export default function RelativesPage() {
             </div>
           </section>
         </main>
-      </SidebarInset>
-    </SidebarProvider>
   );
 }
