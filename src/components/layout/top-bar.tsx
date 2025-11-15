@@ -4,23 +4,28 @@ import Link from "next/link"
 
 import { ModeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { useSession } from "next-auth/react"
+import { Sparkles } from "lucide-react"
 
 export const TopBar = () => {
   const { data: session } = useSession()
   const user = session?.user
+  const { state } = useSidebar()
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-border/60 bg-background/70 px-4 sm:px-6">
       <div className="flex items-center gap-3">
         <SidebarTrigger className="text-muted-foreground" aria-label="Toggle navigation" />
-        <div className="leading-tight">
-          <p className="text-sm font-semibold">Aging with AI</p>
-          <p className="text-xs text-muted-foreground">
-            Hackathon frontend scaffold
-          </p>
-        </div>
+        {state === "collapsed" ? (
+          <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-primary">
+            <Sparkles className="h-4 w-4" aria-hidden />
+            <div className="leading-tight">
+              <p className="text-sm font-semibold">EverGreen</p>
+              <p className="text-[11px] text-primary/80">Beyond Dystopia</p>
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="hidden text-right text-xs text-muted-foreground sm:block">

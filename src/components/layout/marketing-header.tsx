@@ -22,7 +22,7 @@ export const MarketingHeader = () => {
     <header className="border-b border-border/50 bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-6 py-5">
         <Link href="/" className="text-lg font-semibold">
-          Aging with AI
+          EverGreen
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
           {navLinks.map((link) => (

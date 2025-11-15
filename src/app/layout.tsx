@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aging with AI",
-  description: "Gentle planning and activity matching for seniors and families",
+  title: "EverGreen",
+  description: "The gentle bridge from a lonely dystopia to a shared utopia",
 };
 
 export default function RootLayout({

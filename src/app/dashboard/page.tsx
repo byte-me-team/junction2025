@@ -15,7 +15,27 @@ import {
 } from "@/components/ui/card";
 import { useRequireAuth } from "@/lib/use-require-auth";
 
-const LOADING_STAGES = ["Fetching data", "Sending prompt", "Awaiting response"] as const;
+const LOADING_STAGES = [
+  "Fetching data",
+  "Sending prompt",
+  "Awaiting response",
+] as const;
+
+type RelativeSummary = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type CityEvent = {
+  id: string;
+  title: string;
+  description: string;
+  locationName: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  infoUrl?: string | null;
+};
 
 type DashboardSuggestion = {
   id: string;
@@ -31,6 +51,7 @@ type DashboardSuggestion = {
 
 export default function DashboardPage() {
   const { user, isLoading } = useRequireAuth();
+  const [relatives, setRelatives] = useState<RelativeSummary[]>([]);
 
   if (isLoading) {
     return (
@@ -63,13 +84,35 @@ export default function DashboardPage() {
             favorite and we&apos;ll mark it as today&apos;s plan.
           </p>
           {user.email ? (
-            <GeneralSuggestionLab email={user.email} />
+            <GeneralSuggestionLab
+              email={user.email}
+              relatives={relatives}
+              setRelatives={setRelatives}
+            />
           ) : (
             <p className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
               Add an email address to your profile to unlock suggestion
               generation.
             </p>
           )}
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-2xl font-semibold">
+            Real events happening this week
+          </h2>
+          <p className="mt-2 text-base text-muted-foreground">
+            Pull live events from Espoo using the Linked Events API. Use the
+            invite flow to loop in your relatives.
+          </p>
+          {user.email ? (
+            <RealEventsLab
+              email={user.email}
+              relatives={relatives}
+              setRelatives={setRelatives}
+              city={user.city}
+            />
+          ) : null}
         </section>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -104,11 +147,16 @@ export default function DashboardPage() {
   );
 }
 
-function GeneralSuggestionLab({ email }: { email: string }) {
+function GeneralSuggestionLab({
+  email,
+  relatives,
+  setRelatives,
+}: {
+  email: string;
+  relatives: RelativeSummary[];
+  setRelatives: (relatives: RelativeSummary[]) => void;
+}) {
   const [suggestions, setSuggestions] = useState<DashboardSuggestion[]>([]);
-  const [relatives, setRelatives] = useState<
-    { id: string; name: string; email: string }[]
-  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -596,6 +644,289 @@ function SimpleLoadingState({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function RealEventsLab({
+  email,
+  relatives,
+  setRelatives,
+  city,
+}: {
+  email: string;
+  relatives: RelativeSummary[];
+  setRelatives: (relatives: RelativeSummary[]) => void;
+  city?: string | null;
+}) {
+  const [events, setEvents] = useState<CityEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+  const [modalEvent, setModalEvent] = useState<CityEvent | null>(null);
+  const [customTitle, setCustomTitle] = useState("");
+  const [customSummary, setCustomSummary] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [selectedRelatives, setSelectedRelatives] = useState<string[]>([]);
+
+  const closeModal = useCallback(() => {
+    setModalEvent(null);
+    setCustomTitle("");
+    setCustomSummary("");
+    setInviteMessage("");
+    setSelectedRelatives([]);
+  }, []);
+
+  useEffect(() => {
+    if (!statusNotice) return;
+    const timer = setTimeout(() => setStatusNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [statusNotice]);
+
+  const fetchEvents = useCallback(async () => {
+    if (!email) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/event-recommendations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | {
+            events?: CityEvent[];
+            relatives?: RelativeSummary[];
+            error?: string;
+          }
+        | null;
+      if (!res.ok) {
+        throw new Error(payload?.error ?? "Failed to load events");
+      }
+      setEvents(payload?.events ?? []);
+      if (payload?.relatives) {
+        setRelatives(payload.relatives);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email, setRelatives]);
+
+  const handleCustomize = useCallback(
+    (event: CityEvent) => {
+      setModalEvent(event);
+      setCustomTitle(event.title);
+      setCustomSummary(event.description);
+      setInviteMessage(
+        `Hi family, there is a “${event.title}” today in ${event.locationName}. Want to join me?`
+      );
+      setSelectedRelatives([]);
+    },
+    []
+  );
+
+  const toggleRelative = useCallback((id: string) => {
+    setSelectedRelatives((prev) =>
+      prev.includes(id) ? prev.filter((rid) => rid !== id) : [...prev, id]
+    );
+  }, []);
+
+  const handleSendInvites = useCallback(() => {
+    const count = selectedRelatives.length;
+    setStatusNotice(
+      count > 0
+        ? `Sent invitation to ${count} relative${count === 1 ? "" : "s"}.`
+        : "Saved your invite for later."
+    );
+    closeModal();
+  }, [closeModal, selectedRelatives]);
+
+  const cityLabel = city?.length ? city : "your city";
+
+  return (
+    <div className="mt-6 space-y-4 rounded-3xl border border-border/60 bg-card/50 p-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={fetchEvents} disabled={isLoading}>
+          {isLoading ? "Fetching…" : `Find events in ${cityLabel}`}
+        </Button>
+        {error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : statusNotice ? (
+          <p className="text-sm text-emerald-600">{statusNotice}</p>
+        ) : events.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Tap “Let’s go!” to personalize an invite.
+          </p>
+        ) : null}
+      </div>
+
+      {events.length === 0 && !isLoading ? (
+        <div className="rounded-2xl border border-dashed border-muted-foreground/40 p-6 text-sm text-muted-foreground">
+          No live events for this week in {cityLabel}. Try fetching again later
+          or broaden your interests.
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {events.map((event) => (
+            <Card key={event.id} className="flex h-full flex-col bg-muted/30">
+              <CardHeader>
+                <CardTitle className="text-lg">{event.title}</CardTitle>
+                <CardDescription>{event.locationName}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {event.description || "Details coming soon."}
+                </p>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {event.startTime
+                    ? new Date(event.startTime).toLocaleString()
+                    : "Time TBD"}
+                </p>
+              </CardContent>
+              <CardFooter className="mt-auto w-full flex-col items-start gap-3">
+              <div className="flex w-full flex-wrap gap-2">
+                <Button className="flex-1" onClick={() => handleCustomize(event)}>
+                  Let&apos;s go!
+                </Button>
+              </div>
+              {event.infoUrl ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <a
+                    href={event.infoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View details
+                    <span aria-hidden className="text-base">↗</span>
+                  </a>
+                </Button>
+              ) : null}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {modalEvent ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-3xl rounded-[32px] bg-background p-8 shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-base font-semibold text-primary">
+                  Craft your invite
+                </p>
+                <h3 className="text-3xl font-semibold">{modalEvent.title}</h3>
+              </div>
+              <button
+                className="text-base text-muted-foreground"
+                onClick={closeModal}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-base font-medium text-foreground">
+                  <PencilLine className="h-4 w-4 text-primary" />
+                  Plan title
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-border/70 bg-background px-4 py-3 text-lg font-semibold"
+                  value={customTitle}
+                  onChange={(event) => setCustomTitle(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-base font-medium text-foreground">
+                  <PencilLine className="h-4 w-4 text-primary" />
+                  Short description
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-border/70 bg-background px-4 py-3 text-base"
+                  value={customSummary}
+                  onChange={(event) => setCustomSummary(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-muted/60 p-5 text-base">
+              <p className="font-semibold text-foreground">Invite message</p>
+              <textarea
+                className="mt-4 min-h-[140px] w-full rounded-2xl border border-border/70 bg-background px-4 py-3 text-base"
+                value={inviteMessage}
+                onChange={(event) => setInviteMessage(event.target.value)}
+              />
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <label className="text-base font-medium text-foreground">
+                Invite relatives
+              </label>
+              {relatives.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Add relatives to your profile to send invites.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {relatives.map((relative) => {
+                    const isSelected = selectedRelatives.includes(relative.id);
+                    return (
+                      <button
+                        key={relative.id}
+                        type="button"
+                        className={`rounded-full border px-4 py-2 text-sm transition ${
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-muted text-muted-foreground"
+                        }`}
+                        onClick={() => toggleRelative(relative.id)}
+                      >
+                        {relative.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button
+                className="flex-1 min-w-[150px]"
+                onClick={handleSendInvites}
+              >
+                Send invite
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 min-w-[150px]"
+                onClick={() => {
+                  setStatusNotice("Saved your invite for later.");
+                  closeModal();
+                }}
+              >
+                Save for later
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1 min-w-[150px]"
+                onClick={closeModal}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

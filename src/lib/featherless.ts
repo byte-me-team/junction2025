@@ -52,6 +52,12 @@ export type GeneralSuggestionsPlan = z.infer<
   typeof GeneralSuggestionsSchema
 >;
 
+const EventKeywordPlanSchema = z.object({
+  keywords: z.array(z.string().min(2)).min(1).max(5),
+});
+
+export type EventKeywordPlan = z.infer<typeof EventKeywordPlanSchema>;
+
 // ------------- Low-level HTTP caller -------------
 
 function extractJsonObject(text: string): string {
@@ -298,6 +304,23 @@ Respond with VALID JSON ONLY:
 }
 `.trim();
 
+// ------------- Event keyword instructions -------------
+const EVENT_KEYWORD_INSTRUCTIONS = `
+You design Linked Events API keyword filters for seniors in Espoo.
+Use the provided profile and recent accepted/rejected titles to decide which keywords are most promising.
+
+Rules:
+- Return between 1 and 5 short search phrases (e.g. "choir", "quiet walk", "museum").
+- Prefer phrases that align with accepted titles or core normalized interests.
+- Avoid keywords related to recently rejected titles.
+- No explanation, only the JSON structure shown below.
+
+Output JSON ONLY:
+{
+  "keywords": [ "...", "..." ]
+}
+`.trim();
+
 type SuggestionHistoryEntry = {
   title: string;
 };
@@ -378,4 +401,46 @@ Return JSON only. No code fences. No commentary.
   }
 
   return GeneralSuggestionsSchema.parse(parsed);
+}
+
+export async function callFeatherlessEventKeywords({
+  preferences,
+  acceptedTitles,
+  rejectedTitles,
+}: {
+  preferences: NormalizedPreferences;
+  acceptedTitles: string[];
+  rejectedTitles: string[];
+}): Promise<EventKeywordPlan> {
+  const fullPrompt = `
+${EVENT_KEYWORD_INSTRUCTIONS}
+
+Normalized interests:
+${JSON.stringify(preferences, null, 2)}
+
+Accepted titles they enjoyed:
+${JSON.stringify(acceptedTitles, null, 2)}
+
+Rejected titles they skipped:
+${JSON.stringify(rejectedTitles, null, 2)}
+
+Return JSON only. No code fences.
+  `.trim();
+
+  const output = await callFeatherlessRaw(fullPrompt);
+  const jsonString = extractJsonObject(output);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch (err) {
+    throw new Error(
+      "Failed to parse event keyword JSON: " +
+        (err as Error).message +
+        "\nHere is the output: " +
+        output
+    );
+  }
+
+  return EventKeywordPlanSchema.parse(parsed);
 }

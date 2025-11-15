@@ -81,7 +81,7 @@ export function SignupForm({
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle>Start your Aging with AI plan</CardTitle>
+        <CardTitle>Start your EverGreen plan</CardTitle>
         <CardDescription>
           Tell us who we&apos;re planning for and how to reach them.
         </CardDescription>
