@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, PencilLine, XCircle } from "lucide-react";
+import { logActivityHistory } from "@/lib/log-activity-history";
 
 type ActivitySuggestion = {
   title: string;
@@ -30,9 +31,11 @@ type MatchStatus = "idle" | "loading" | "ready" | "error";
 export default function CreateMatchModal({
   userId,
   relativeId,
+  relativeName,
 }: {
   userId: string;
   relativeId: string;
+  relativeName: string;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [status, setStatus] = useState<MatchStatus>("idle");
@@ -90,9 +93,16 @@ export default function CreateMatchModal({
     setIsCustomizeOpen(true);
   }
 
-  function handleSendInvite() {
+  async function handleSendInvite() {
     if (!selectedActivity) return;
     const name = customTitle || selectedActivity.title;
+    await logActivityHistory({
+      title: name,
+      description: customSummary || selectedActivity.description,
+      source: "relative",
+      partnerName: relativeName,
+      metadata: { relativeId },
+    });
     setStatusNotice(`Invite queued for “${name}”.`);
     setIsCustomizeOpen(false);
   }
@@ -165,9 +175,13 @@ export default function CreateMatchModal({
     } catch (err) {
       console.error(err);
       setStatus("error");
-      setErrorMessage(
-        err instanceof Error ? err.message : "Something went wrong"
-      );
+      const message =
+        err instanceof Error && err.message.includes("Featherless")
+          ? "Service temporarily unavailable. Please try again in a moment."
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong";
+      setErrorMessage(message);
     }
   }
 

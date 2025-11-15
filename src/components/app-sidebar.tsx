@@ -95,12 +95,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-white transition-all group-data-[state=collapsed]/sidebar-wrapper:justify-center group-data-[state=collapsed]/sidebar-wrapper:px-0">
           <Sparkles className="h-6 w-6 text-white" aria-hidden />
-          <div className="group-data-[state=collapsed]:hidden">
+          <Link className="group-data-[state=collapsed]:hidden" href={"/"}>
             <p className="text-lg font-semibold tracking-wide text-white">
               EverGreen
             </p>
             <p className="text-xs text-white/70">Creating Utopia</p>
-          </div>
+          </Link>
         </div>
       </SidebarHeader>
       <SidebarContent>

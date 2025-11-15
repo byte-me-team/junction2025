@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useRequireAuth } from "@/lib/use-require-auth";
+import { logActivityHistory } from "@/lib/log-activity-history";
 
 const LOADING_STAGES = [
   "Fetching data",
@@ -251,45 +252,13 @@ function GeneralSuggestionLab({
     }
   }, [email, closeModal]);
 
-  const handleCustomize = useCallback(
-    async (suggestionId: string) => {
-      setUpdatingId(suggestionId);
-      setError(null);
-      try {
-        const res = await fetch(`/api/general-suggestions/${suggestionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accepted: true }),
-        });
-        const payload = (await res.json().catch(() => null)) as
-          | { suggestion?: DashboardSuggestion; error?: string }
-          | null;
-        if (!res.ok) {
-          throw new Error(payload?.error ?? "Unable to update choice");
-        }
-        const updated = payload?.suggestion;
-        if (updated) {
-          setSuggestions((prev) =>
-            prev.map((item) =>
-              item.id === updated.id
-                ? { ...item, accepted: true }
-                : { ...item, accepted: false }
-            )
-          );
-          setCustomTitle(updated.title);
-          setCustomSummary(updated.summary);
-          setInviteMessage(`Hey family, let's try “${updated.title}” soon!`);
-          setSelectedRelatives([]);
-          setModalSuggestion(updated);
-        }
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setUpdatingId(null);
-      }
-    },
-    []
-  );
+  const handleCustomize = useCallback((suggestion: DashboardSuggestion) => {
+    setCustomTitle(suggestion.title);
+    setCustomSummary(suggestion.summary);
+    setInviteMessage(`Hey family, let's try “${suggestion.title}” soon!`);
+    setSelectedRelatives([]);
+    setModalSuggestion(suggestion);
+  }, []);
 
   const showSkeleton = isGenerating || (isLoading && suggestions.length === 0);
 
@@ -301,20 +270,56 @@ function GeneralSuggestionLab({
     );
   }, []);
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
+    if (!modalSuggestion) return;
     const chosen = relatives.filter((relative) =>
       selectedRelatives.includes(relative.id)
     );
-    const summaryMessage =
-      chosen.length > 0
-        ? `Sent invitations to ${chosen
-            .map((r) => r.name.split(" ")[0] ?? r.name)
-            .join(", ")}.`
-        : "Saved your invite for later.";
+    const partnerNames = chosen.length
+      ? chosen.map((r) => r.name.split(" ")[0] ?? r.name).join(", ")
+      : undefined;
+    const summaryMessage = partnerNames
+      ? `Sent invitations to ${partnerNames}.`
+      : "Saved your invite for later.";
 
-    setStatusNotice(summaryMessage);
-    closeModal();
-  }, [closeModal, relatives, selectedRelatives]);
+    try {
+      setUpdatingId(modalSuggestion.id);
+      const res = await fetch(`/api/general-suggestions/${modalSuggestion.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accepted: true }),
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | { suggestion?: DashboardSuggestion; error?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(payload?.error ?? "Unable to update choice");
+      }
+      const updated = payload?.suggestion;
+      if (updated) {
+        setSuggestions((prev) =>
+          prev.map((item) =>
+            item.id === updated.id
+              ? { ...item, accepted: true }
+              : { ...item, accepted: false }
+          )
+        );
+      }
+      await logActivityHistory({
+        title: customTitle || modalSuggestion.title,
+        description: customSummary || modalSuggestion.summary,
+        source: "suggestion",
+        partnerName: partnerNames,
+        metadata: modalSuggestion.metadata,
+      });
+      setStatusNotice(summaryMessage);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUpdatingId(null);
+      closeModal();
+    }
+  }, [closeModal, customSummary, customTitle, modalSuggestion, relatives, selectedRelatives]);
 
   return (
     <div className="mt-6 space-y-4 rounded-3xl border border-border/60 bg-card/50 p-6">
@@ -426,7 +431,7 @@ function GeneralSuggestionLab({
                   <div className="flex w-full flex-wrap gap-2">
                     <Button
                       className="flex-1"
-                      onClick={() => handleCustomize(suggestion.id)}
+                      onClick={() => handleCustomize(suggestion)}
                       disabled={isUpdating}
                     >
                       Let&apos;s go!
@@ -714,15 +719,29 @@ function RealEventsLab({
     );
   }, []);
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
+    if (!modalEvent) return;
     const count = selectedRelatives.length;
+    await logActivityHistory({
+      title: customTitle || modalEvent.title,
+      description: customSummary || modalEvent.description,
+      source: "real_event",
+      partnerName:
+        count > 0
+          ? `${count} relative${count === 1 ? "" : "s"}`
+          : undefined,
+      metadata: {
+        location: modalEvent.locationName,
+        startTime: modalEvent.startTime,
+      },
+    });
     setStatusNotice(
       count > 0
         ? `Sent invitation to ${count} relative${count === 1 ? "" : "s"}.`
         : "Saved your invite for later."
     );
     closeModal();
-  }, [closeModal, selectedRelatives]);
+  }, [closeModal, customSummary, customTitle, modalEvent, selectedRelatives]);
 
   const cityLabel = city?.length ? city : "your city";
 

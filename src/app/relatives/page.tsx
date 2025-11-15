@@ -135,7 +135,11 @@ export default function RelativesPage() {
                             </p>
                           </div>
 
-                          <CreateMatchModal userId={user.id} relativeId={relative.id} />
+                          <CreateMatchModal
+                            userId={user.id}
+                            relativeId={relative.id}
+                            relativeName={decodeURIComponent(relative.name)}
+                          />
                         </div>
                       </article>
                     ))}

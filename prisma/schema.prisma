@@ -25,6 +25,28 @@ model User {
   matchedSuggestions MatchedSuggestion[]
   generalSuggestions GeneralSuggestion[]
   matchesAsUser Match[]          @relation("UserMatches")
+  history       ActivityHistory[]
+}
+
+enum ActivitySource {
+  suggestion
+  real_event
+  relative
+  calendar
+}
+
+model ActivityHistory {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  partnerName String?
+  source      ActivitySource
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model UserPreferences {
