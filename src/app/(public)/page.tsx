@@ -80,7 +80,7 @@ export default function Home() {
           </div>
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-0 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative rounded-[40px] border border-primary/30 bg-card/80 p-8 text-center shadow-xl shadow-primary/20 transition motion-safe:animate-[pulse_4s_ease-in-out_infinite]">
+            <div className="relative rounded-[40px] border border-primary/30 bg-card/80 p-8 text-center shadow-xl shadow-primary/20 transition">
               <Image
                 src="/evergreen.png"
                 alt="Evergreen logo"
