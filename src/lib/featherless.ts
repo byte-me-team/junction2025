@@ -3,7 +3,7 @@ import { z } from "zod";
 const FEATHERLESS_API_KEY = process.env.FEATHERLESS_API_KEY;
 
 const FEATHERLESS_BASE_URL = "https://api.featherless.ai/v1/completions";
-const MODEL_NAME = "Qwen/Qwen2.5-72B-Instruct";
+const MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct";
 
 // ------------- Schemas -------------
 
