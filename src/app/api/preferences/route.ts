@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { saveUserPreferences } from "@/lib/services";
+import { FeatherlessConcurrencyError } from "@/lib/featherless";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,6 +42,17 @@ export async function POST(req: NextRequest) {
     );
   } catch (err: any) {
     console.error("POST /api/preferences error:", err);
+
+    if (err instanceof FeatherlessConcurrencyError) {
+      return NextResponse.json(
+        {
+          error: "LLM concurrency limit exceeded. Please wait a moment and try again.",
+          details: err.message,
+        },
+        { status: 429 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to save preferences" },
       { status: 500 }

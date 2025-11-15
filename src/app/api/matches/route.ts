@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createMatch } from "@/lib/services";
+import { FeatherlessConcurrencyError } from "@/lib/featherless";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,10 +33,22 @@ export async function POST(req: NextRequest) {
     const match = await createMatch(user1.id, user2.id);
 
     return NextResponse.json(match, { status: 200 });
+
   } catch (err: any) {
-    console.error("POST /api/matches error:", err);
+    console.error("POST /api/preferences error:", err);
+
+    if (err instanceof FeatherlessConcurrencyError) {
+      return NextResponse.json(
+        {
+          error: "LLM concurrency limit exceeded. Please wait a moment and try again.",
+          details: err.message,
+        },
+        { status: 429 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to create match" },
+      { error: "Failed to save preferences" },
       { status: 500 }
     );
   }

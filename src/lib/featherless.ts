@@ -41,6 +41,31 @@ export type JointActivities = z.infer<typeof JointActivitiesSchema>;
 
 // ------------- Low-level HTTP caller -------------
 
+function extractJsonObject(text: string): string {
+  // If there are fenced code blocks, strip them
+  const fenceMatch = text.match(/```(?:json)?([\s\S]*?)```/i);
+  const inner = fenceMatch ? fenceMatch[1] : text;
+
+  // Trim and then try to take substring from first "{" to last "}"
+  const trimmed = inner.trim();
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  // If that fails, just return trimmed and let JSON.parse throw
+  return trimmed;
+}
+
+export class FeatherlessConcurrencyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FeatherlessConcurrencyError";
+  }
+}
+
 async function callFeatherlessRaw(prompt: string): Promise<string> {
   const res = await fetch(FEATHERLESS_BASE_URL, {
     method: "POST",
@@ -55,21 +80,34 @@ async function callFeatherlessRaw(prompt: string): Promise<string> {
     }),
   });
 
+  const text = await res.text().catch(() => "");
+
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
+    try {
+      const json = JSON.parse(text);
+      const code = json?.error?.code;
+      const message = json?.error?.message ?? text;
+
+      if (code === "concurrency_limit_exceeded") {
+        throw new FeatherlessConcurrencyError(message);
+      }
+    } catch {
+      // ignore JSON parse error, fall through to generic error
+    }
+
     throw new Error(
       `Featherless error: ${res.status} ${res.statusText} - ${text}`
     );
   }
 
-  const data = (await res.json()) as any;
+  const data = JSON.parse(text) as any;
+  const completionText = data.choices?.[0]?.text;
 
-  const text = data.choices?.[0]?.text;
-  if (!text || typeof text !== "string") {
+  if (!completionText || typeof completionText !== "string") {
     throw new Error("Invalid Featherless response: missing choices[0].text");
   }
 
-  return text.trim();
+  return completionText.trim();
 }
 
 // ------------- High-level helpers -------------
@@ -101,16 +139,22 @@ ${NORMALIZE_SYSTEM_INSTRUCTIONS}
 User text:
 ${rawText}
 
-Return JSON only.
+Return JSON only. No backticks, no code fences, no commentary.
   `.trim();
 
   const output = await callFeatherlessRaw(fullPrompt);
+  const jsonString = extractJsonObject(output);
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(output);
+    parsed = JSON.parse(jsonString);
   } catch (err) {
-    throw new Error("Failed to parse normalize JSON: " + (err as Error).message);
+    throw new Error(
+      "Failed to parse normalize JSON: " +
+        (err as Error).message +
+        "\nHere is the output: " +
+        output
+    );
   }
 
   return NormalizedPreferencesSchema.parse(parsed);
@@ -150,16 +194,22 @@ ${JSON.stringify(user1Prefs, null, 2)}
 User 2:
 ${JSON.stringify(user2Prefs, null, 2)}
 
-Return JSON only.
+Return JSON only. No backticks, no code fences, no commentary.
   `.trim();
 
   const output = await callFeatherlessRaw(fullPrompt);
+  const jsonString = extractJsonObject(output);
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(output);
+    parsed = JSON.parse(jsonString);
   } catch (err) {
-    throw new Error("Failed to parse joint activities JSON: " + (err as Error).message);
+    throw new Error(
+      "Failed to parse joint activities JSON: " +
+        (err as Error).message +
+        "\nHere is the output: " +
+        output
+    );
   }
 
   return JointActivitiesSchema.parse(parsed);
