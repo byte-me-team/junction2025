@@ -22,6 +22,7 @@ model User {
   sessions      Session[]
   matchesAsUser1 Match[]          @relation("MatchesAsUser1")
   matchesAsUser2 Match[]          @relation("MatchesAsUser2")
+  espooSuggestionCache EspooSuggestionCache?
 }
 
 model UserPreferences {
@@ -87,6 +88,15 @@ model Match {
   suggestionsJson  Json
 
   createdAt DateTime @default(now())
+}
+
+model EspooSuggestionCache {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestionsJson Json
+  generatedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Event {

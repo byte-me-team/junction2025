@@ -30,13 +30,11 @@ docker compose up web
 
 This command installs dependencies (cached in the `web-node-modules` volume), generates the Prisma client, pushes the schema, syncs the database, ingests the next few days of Espoo events, and starts the Next.js dev server on port 3000.
 
-You can refresh the event catalog manually at any time (set `ESPOO_EVENTS_WINDOW_DAYS` to control the lookahead window and `ESPOO_EVENTS_LIMIT` to cap the fetch size):
+You can refresh the event catalog manually at any time (set `ESPOO_EVENTS_WINDOW_DAYS` to control the lookahead window, `ESPOO_EVENTS_LIMIT` to cap the fetch size, and `ESPOO_EVENTS_RETENTION_DAYS` to control how long past events stay in the table before being purged). `ESPOO_EVENTS_MODEL_LIMIT` caps how many candidates are sent to Featherless per call, and `ESPOO_SUGGESTION_CACHE_TTL_HOURS` configures how long AI results stay cached before we regenerate them:
 
 ```bash
 npm run ingest:events
 ```
-
-Events are retained indefinitely for now. If the table grows too large, run a manual cleanup query in Prisma Studio.
 
 #### authentication
 

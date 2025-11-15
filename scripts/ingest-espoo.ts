@@ -5,7 +5,7 @@ import { prisma } from "../src/lib/prisma";
 const API_BASE = "https://api.hel.fi/linkedevents/v1/event/";
 const WINDOW_DAYS = Number(process.env.ESPOO_EVENTS_WINDOW_DAYS ?? "10");
 const MAX_EVENTS = Number(process.env.ESPOO_EVENTS_LIMIT ?? "200");
-const RETENTION_BUFFER_DAYS = Number(
+const RETENTION_DAYS = Number(
   process.env.ESPOO_EVENTS_RETENTION_DAYS ?? "30"
 );
 
@@ -89,41 +89,50 @@ function isEspooEvent(event: EspooEvent) {
 }
 
 async function main() {
+  const now = new Date();
+  let removed = 0;
+  if (RETENTION_DAYS >= 0) {
+    const cutoff = new Date(
+      now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000
+    );
+    const result = await prisma.event.deleteMany({
+      where: {
+        startTime: { lt: cutoff },
+      },
+    });
+    removed = result.count;
+  }
+
   const events = await fetchEspooEvents();
   console.log(`Fetched ${events.length} Espoo events from Linked Events API`);
 
-  const now = new Date();
-  const result = await prisma.$transaction(async (tx) => {
-    let upserts = 0;
-    for (const evt of events) {
-      const normalized = normalizeEvent(evt);
-      if (!normalized) continue;
+  let upserts = 0;
+  for (const evt of events) {
+    const normalized = normalizeEvent(evt);
+    if (!normalized) continue;
 
-      await tx.event.upsert({
-        where: { sourceId: normalized.sourceId },
-        create: normalized,
-        update: {
-          title: normalized.title,
-          description: normalized.description,
-          summary: normalized.summary,
-          startTime: normalized.startTime,
-          endTime: normalized.endTime,
-          locationName: normalized.locationName,
-          locationAddress: normalized.locationAddress,
-          city: normalized.city,
-          price: normalized.price,
-          tags: normalized.tags,
-          sourceUrl: normalized.sourceUrl,
-          rawJson: normalized.rawJson,
-        },
-      });
-      upserts += 1;
-    }
+    await prisma.event.upsert({
+      where: { sourceId: normalized.sourceId },
+      create: normalized,
+      update: {
+        title: normalized.title,
+        description: normalized.description,
+        summary: normalized.summary,
+        startTime: normalized.startTime,
+        endTime: normalized.endTime,
+        locationName: normalized.locationName,
+        locationAddress: normalized.locationAddress,
+        city: normalized.city,
+        price: normalized.price,
+        tags: normalized.tags,
+        sourceUrl: normalized.sourceUrl,
+        rawJson: normalized.rawJson,
+      },
+    });
+    upserts += 1;
+  }
 
-    return { upserts };
-  });
-
-  console.log(`Upserted ${result.upserts} events.`);
+  console.log(`Upserted ${upserts} events. Removed ${removed} old events.`);
 }
 
 function normalizeEvent(event: EspooEvent) {

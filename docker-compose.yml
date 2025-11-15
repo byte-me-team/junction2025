@@ -15,7 +15,7 @@ services:
     image: node:20
     working_dir: /app
     command: >-
-      sh -c "npm ci && npx prisma generate && npx prisma db push && npm run ingest:events && npm run dev"
+      sh -c "npm ci && npx prisma generate && npx prisma db push && (npm run ingest:events >/tmp/ingest.log 2>&1 &) && npm run dev"
     environment:
       DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://postgres:postgres@db:5432/appdb?schema=public}
       PORT: ${PORT:-3000}
@@ -35,7 +35,7 @@ services:
     image: node:20
     working_dir: /app
     command: >-
-      sh -c "while [ ! -x node_modules/.bin/prisma ]; do echo 'waiting for node_modules...'; sleep 2; done && npx prisma generate && npx prisma studio --hostname 0.0.0.0 --port ${PRISMA_STUDIO_PORT:-5555}"
+      sh -c "npm ci && npx prisma generate && npx prisma studio --hostname 0.0.0.0 --port ${PRISMA_STUDIO_PORT:-5555}"
     environment:
       DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://postgres:postgres@db:5432/appdb?schema=public}
       FEATHERLESS_API_KEY: ${FEATHERLESS_API_KEY:-}
@@ -43,7 +43,6 @@ services:
       - "${PRISMA_STUDIO_PORT:-5555}:5555"
     depends_on:
       - db
-      - web
     volumes:
       - .:/app
       - web-node-modules:/app/node_modules

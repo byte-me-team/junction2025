@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.info("[EspooSuggestions][API] Incoming request", { email });
+
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true },
@@ -33,9 +35,14 @@ export async function POST(request: NextRequest) {
 
     const suggestions = await getEspooEventSuggestionsForUser(user.id);
 
+    console.info("[EspooSuggestions][API] Responding with recommendations", {
+      email,
+      recommendationCount: suggestions.recommendations.length,
+    });
+
     return NextResponse.json(suggestions, { status: 200 });
   } catch (error) {
-    console.error("POST /api/espoo-suggestions error", error);
+    console.error("[EspooSuggestions][API] Error", error);
 
     if (error instanceof FeatherlessConcurrencyError) {
       return NextResponse.json(

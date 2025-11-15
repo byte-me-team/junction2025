@@ -40,7 +40,11 @@ const EventRecommendationSchema = z.object({
   event_id: z.string(),
   title: z.string(),
   reason: z.string(),
-  confidence: z.number().optional(),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .catch(0.5),
 });
 
 export const EventSuggestionsSchema = z.object({
@@ -96,23 +100,44 @@ export class FeatherlessMissingApiKeyError extends Error {
   }
 }
 
+const FEATHERLESS_TIMEOUT_MS = Number(
+  process.env.FEATHERLESS_TIMEOUT_MS ?? "45000"
+);
+
 async function callFeatherlessRaw(prompt: string): Promise<string> {
   if (!FEATHERLESS_API_KEY) {
     throw new FeatherlessMissingApiKeyError();
   }
 
-  const res = await fetch(FEATHERLESS_BASE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL_NAME,
-      prompt,
-      max_tokens: 1500,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FEATHERLESS_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(FEATHERLESS_BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        prompt,
+        max_tokens: 1500,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    if ((error as Error)?.name === "AbortError") {
+      throw new Error(
+        `Featherless request timed out after ${FEATHERLESS_TIMEOUT_MS}ms`
+      );
+    }
+    throw error;
+  }
+
+  clearTimeout(timeout);
 
   const text = await res.text().catch(() => "");
 
@@ -252,14 +277,14 @@ Return JSON only. No backticks, no code fences, no commentary.
 }
 
 const EVENT_MATCH_SYSTEM_INSTRUCTIONS = `
-You are a cultural concierge. Given a person's structured preferences and a set of candidate events, recommend the most relevant events for the next week. Consider tags, descriptions, timing, location, and accessibility cues. Return JSON ONLY:
+You are a cultural concierge. Given a person's structured preferences and a set of candidate events, recommend the most relevant events for the next week. Consider tags, descriptions, timing, location, and accessibility cues. Assign each recommendation a confidence score between 0 and 1 (0 = weak match, 1 = perfect match). Return JSON ONLY:
 {
   "recommendations": [
     {
       "event_id": string, // must match the provided event id
       "title": string, // human readable title or summary
       "reason": string, // short explanation personalized to the user
-      "confidence": number // optional 0-1 confidence score
+      "confidence": number // required 0-1 confidence score
     }
   ]
 }
@@ -272,6 +297,11 @@ export async function callFeatherlessEventSuggestions(
   if (!events.length) {
     throw new Error("No events provided to Featherless");
   }
+
+  const startedAt = Date.now();
+  console.info("[Featherless][events] Sending candidate batch", {
+    candidateCount: events.length,
+  });
 
   const payload = events.map((evt) => ({
     event_id: evt.id,
@@ -298,6 +328,9 @@ Always choose events from the provided list. No new events. Return JSON only, wi
   `.trim();
 
   const output = await callFeatherlessRaw(fullPrompt);
+  console.info("[Featherless][events] Raw completion received", {
+    durationMs: Date.now() - startedAt,
+  });
   const jsonString = extractJsonObject(output);
 
   let parsed: unknown;
@@ -312,5 +345,10 @@ Always choose events from the provided list. No new events. Return JSON only, wi
     );
   }
 
-  return EventSuggestionsSchema.parse(parsed);
+  const validated = EventSuggestionsSchema.parse(parsed);
+  console.info("[Featherless][events] Parsed recommendations", {
+    recommendationCount: validated.recommendations.length,
+  });
+
+  return validated;
 }

@@ -4,50 +4,100 @@ import { useEffect, useState } from "react";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import { Button } from "@/components/ui/button";
 
-type Suggestion = {
-  id: string;
+type EventRecommendation = {
+  event_id: string;
   title: string;
   reason: string;
-  time: string;
-  location: string;
+  confidence: number;
+  event: {
+    title: string;
+    summary: string | null;
+    startTime: string;
+    endTime: string | null;
+    location: string | null;
+    price: string | null;
+    sourceUrl: string | null;
+  };
 };
 
-const fakeSuggestionData: Suggestion[] = [
-  {
-    id: "1",
-    title: "Slow morning walk at Tapiola Garden",
-    reason: "Short route with benches every 200m and winter lights",
-    time: "Tomorrow, 10:00",
-    location: "Tapiola Garden",
-  },
-  {
-    id: "2",
-    title: "Community knitting circle",
-    reason: "Matches your enjoy list + indoors, quiet",
-    time: "Friday, 14:00",
-    location: "Iso Omena Library",
-  },
-  {
-    id: "3",
-    title: "Espoo jazz matinee with granddaughter",
-    reason: "Family seating + 15 min travel",
-    time: "Sunday, 16:30",
-    location: "Sellosali",
-  },
-];
+async function fetchEspooSuggestions(
+  email: string
+): Promise<EventRecommendation[]> {
+  const response = await fetch("/api/espoo-suggestions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
 
-const loadSuggestionsPlaceholder = async (): Promise<Suggestion[]> => {
-  // TODO: Fetch from /api/v1/suggestions once the backend is available
-  return Promise.resolve(fakeSuggestionData);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(payload?.error ?? "Failed to load suggestions");
+  }
+
+  const json = (await response.json()) as {
+    recommendations: EventRecommendation[];
+  };
+
+  return [...json.recommendations].sort(
+    (a, b) => b.confidence - a.confidence
+  );
+}
+
+const formatDate = (input: string) => {
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const formatConfidence = (value: number) => {
+  if (!Number.isFinite(value)) return "--";
+  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}% match`;
 };
 
 export default function DashboardPage() {
   const { user, isLoading } = useRequireAuth();
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [eventSuggestions, setEventSuggestions] = useState<EventRecommendation[]>([]);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
-    loadSuggestionsPlaceholder().then(setSuggestions);
-  }, []);
+    if (!user?.email) return;
+
+    let cancelled = false;
+    setIsLoadingSuggestions(true);
+    setSuggestionError(null);
+    fetchEspooSuggestions(user.email)
+      .then((data) => {
+        if (cancelled) return;
+        setEventSuggestions(data.slice(0, 3));
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setSuggestionError(
+          error instanceof Error
+            ? error.message
+            : "We couldn't fetch events right now."
+        );
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingSuggestions(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
 
   if (isLoading) {
     return (
@@ -70,31 +120,97 @@ export default function DashboardPage() {
           </p>
           <h1 className="text-3xl font-semibold">Your upcoming suggestions</h1>
           <p className="text-base text-muted-foreground">
-            These are mock entries. When the backend lands we will hydrate them
-            with live data.
+            Hand-picked events happening around Espoo based on your onboarding
+            profile.
           </p>
         </div>
-
         <div className="grid gap-4">
-          {suggestions.map((suggestion) => (
+          {isLoadingSuggestions &&
+            Array.from({ length: 3 }).map((_, index) => (
+              <article
+                key={`skeleton-${index}`}
+                className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm animate-pulse"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="skeleton-shimmer h-5 w-48 rounded" />
+                    <div className="skeleton-shimmer h-3 w-32 rounded" />
+                  </div>
+                  <div className="skeleton-shimmer h-8 w-20 rounded" />
+                </div>
+                <div className="mt-4 skeleton-shimmer h-4 w-full rounded" />
+                <div className="mt-2 skeleton-shimmer h-3 w-24 rounded" />
+              </article>
+            ))}
+
+          {suggestionError && (
+            <article className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm">
+              <p className="text-sm text-destructive">
+                {suggestionError}
+              </p>
+            </article>
+          )}
+
+          {!isLoadingSuggestions &&
+            !suggestionError &&
+            eventSuggestions.length === 0 && (
+              <article className="rounded-2xl border border-dashed border-border/60 bg-card/50 p-5 shadow-sm">
+                <p className="text-sm text-muted-foreground">
+                  No Espoo events matched your profile in the next few days. Check
+                  back soon!
+                </p>
+              </article>
+            )}
+
+          {eventSuggestions.map((suggestion) => (
             <article
-              key={suggestion.id}
+              key={suggestion.event_id}
               className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm"
             >
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold">{suggestion.title}</h2>
+                  <h2 className="text-xl font-semibold">
+                    {suggestion.event.title}
+                  </h2>
                   <p className="text-sm text-muted-foreground">
-                    {suggestion.location} • {suggestion.time}
+                    {formatDate(suggestion.event.startTime)}
+                    {suggestion.event.location
+                      ? ` • ${suggestion.event.location}`
+                      : ""}
                   </p>
                 </div>
-                <Button size="sm" variant="outline">
-                  Details
-                </Button>
+                <div className="flex flex-col items-end gap-2 text-right">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Confidence
+                  </div>
+                  <div className="text-sm font-semibold text-primary">
+                    {formatConfidence(suggestion.confidence)}
+                  </div>
+                  {suggestion.event.sourceUrl ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a
+                        href={suggestion.event.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Details
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled>
+                      Details
+                    </Button>
+                  )}
+                </div>
               </div>
               <p className="mt-3 text-base text-muted-foreground">
                 {suggestion.reason}
               </p>
+              {suggestion.event.price && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Price: {suggestion.event.price}
+                </p>
+              )}
             </article>
           ))}
         </div>
