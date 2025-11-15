@@ -65,7 +65,7 @@ const baseSections: NavSection[] = [
   {
     title: "Care circle",
     items: [
-      { title: "Loved ones", url: "/relative", icon: HeartHandshake },
+      { title: "Loved ones", url: "/relatives", icon: HeartHandshake },
       { title: "Invite a relative", url: "/invite", icon: UserPlus },
       { title: "Health", url: "/health", icon: Sprout },
     ],
