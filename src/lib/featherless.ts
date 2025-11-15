@@ -1,9 +1,6 @@
 import { z } from "zod";
 
 const FEATHERLESS_API_KEY = process.env.FEATHERLESS_API_KEY;
-if (!FEATHERLESS_API_KEY) {
-  throw new Error("FEATHERLESS_API_KEY is not set");
-}
 
 const FEATHERLESS_BASE_URL = "https://api.featherless.ai/v1/completions";
 const MODEL_NAME = "Qwen/Qwen2.5-72B-Instruct";
@@ -66,7 +63,18 @@ export class FeatherlessConcurrencyError extends Error {
   }
 }
 
+export class FeatherlessMissingApiKeyError extends Error {
+  constructor() {
+    super("FEATHERLESS_API_KEY is not set. Add it to your environment to enable Featherless integrations.");
+    this.name = "FeatherlessMissingApiKeyError";
+  }
+}
+
 async function callFeatherlessRaw(prompt: string): Promise<string> {
+  if (!FEATHERLESS_API_KEY) {
+    throw new FeatherlessMissingApiKeyError();
+  }
+
   const res = await fetch(FEATHERLESS_BASE_URL, {
     method: "POST",
     headers: {
