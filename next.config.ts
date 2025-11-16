@@ -11,6 +11,7 @@ if (!process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY) {
 }
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
