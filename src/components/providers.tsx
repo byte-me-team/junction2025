@@ -12,6 +12,7 @@ export function Providers({ children }: PropsWithChildren) {
         attribute="class"
         defaultTheme="system"
         disableTransitionOnChange
+        themes={["light", "dark", "contrast"]}
       >
         {children}
       </ThemeProvider>
