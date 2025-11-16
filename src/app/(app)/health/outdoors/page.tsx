@@ -50,19 +50,19 @@ const ROUTINES = [
       {
         title: "Easy walking",
         instruction: "Walk at a relaxed pace. Keep shoulders down, breathe calmly.",
-        durationSec: 90,
+        durationSec: 600,
       },
       {
         title: "Look around",
         instruction:
           "Pause and look at trees, sky, buildings. Gentle head turns only.",
-        durationSec: 30,
+        durationSec: 180,
       },
       {
         title: "Return walk",
         instruction:
           "Walk back at a comfortable pace. Stop anytime if tired.",
-        durationSec: 90,
+        durationSec: 600,
       },
     ],
   },
@@ -74,7 +74,7 @@ const ROUTINES = [
       {
         title: "Stand & breathe",
         instruction: "Stand near a railing or wall. Slow breathing 3×.",
-        durationSec: 25,
+        durationSec: 30,
       },
       {
         title: "Heel-to-toe",
@@ -98,13 +98,13 @@ const ROUTINES = [
       {
         title: "Find a spot",
         instruction: "Sit or stand outside somewhere quiet.",
-        durationSec: 20,
+        durationSec: 60,
       },
       {
         title: "Listen",
         instruction:
           "Listen for 3 different sounds (birds, wind, people, cars).",
-        durationSec: 40,
+        durationSec: 120,
       },
       {
         title: "Slow neck turns",

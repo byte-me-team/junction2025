@@ -3,7 +3,7 @@
 import { ModeToggle } from "@/components/theme-toggle"
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { useSession } from "next-auth/react"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Home } from "lucide-react"
 import { ProfileButton } from "../ui/profile"
 import Link from "next/link"
 
@@ -19,6 +19,7 @@ export const TopBar = () => {
           className="h-11 w-11 rounded-full border border-primary/20 bg-background/90 p-2 text-primary shadow-sm shadow-primary/20 transition hover:border-primary/60 hover:-translate-y-0.5"
           aria-label="Toggle navigation"
         />
+
         {state === "collapsed" ? (
           <div className="flex min-w-0 flex-1">
             <Link
@@ -33,8 +34,19 @@ export const TopBar = () => {
           </div>
         ) : null}
       </div>
+
       <div className="flex items-center gap-2 sm:gap-3">
         <ModeToggle />
+
+        {/* Home button */}
+        <Link
+          href="/dashboard"
+          className="h-10 w-10 flex items-center justify-center rounded-full border border-primary/20 bg-background/90 p-2 text-primary shadow-sm shadow-primary/20 transition hover:border-primary/60 hover:-translate-y-0.5"
+          aria-label="Go to dashboard"
+        >
+          <Home className="h-5 w-5" />
+        </Link>
+
         <ProfileButton />
       </div>
     </header>
