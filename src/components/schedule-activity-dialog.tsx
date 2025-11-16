@@ -139,7 +139,17 @@ export function ScheduleActivityDialog({
           <label className="text-xs font-semibold text-muted-foreground">Partner</label>
           <select
             value={partnerId}
-            onChange={(event) => setPartnerId(event.target.value)}
+            onChange={(event) => {
+              const id = event.target.value
+              setPartnerId(id)
+
+              if (id) {
+                const selected = relatives.find((r) => r.id === id)
+                setPartnerName(selected?.name ?? "")
+              } else {
+                setPartnerName("")
+              }
+            }}
             className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
           >
             <option value="">Custom</option>
