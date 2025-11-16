@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "ActivitySource" AS ENUM ('suggestion', 'real_event', 'relative', 'calendar');
+
+-- CreateEnum
 CREATE TYPE "SuggestionStatus" AS ENUM ('pending', 'accepted', 'rejected');
 
 -- CreateTable
@@ -13,6 +16,37 @@ CREATE TABLE "User" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ActivityHistory" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "partnerName" TEXT,
+    "source" "ActivitySource" NOT NULL,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ActivityHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CalendarActivity" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "note" TEXT,
+    "partnerName" TEXT,
+    "dueDate" TIMESTAMP(3),
+    "source" "ActivitySource" DEFAULT 'calendar',
+    "sourceId" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CalendarActivity_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -88,28 +122,6 @@ CREATE TABLE "Match" (
 );
 
 -- CreateTable
-CREATE TABLE "Event" (
-    "id" TEXT NOT NULL,
-    "sourceId" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "summary" TEXT,
-    "startTime" TIMESTAMP(3) NOT NULL,
-    "endTime" TIMESTAMP(3),
-    "locationName" TEXT,
-    "locationAddress" TEXT,
-    "city" TEXT,
-    "price" TEXT,
-    "tags" TEXT[],
-    "sourceUrl" TEXT,
-    "rawJson" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "GeneralSuggestion" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -126,23 +138,14 @@ CREATE TABLE "GeneralSuggestion" (
     CONSTRAINT "GeneralSuggestion_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "MatchedSuggestion" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "eventId" TEXT NOT NULL,
-    "reason" TEXT NOT NULL,
-    "confidence" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
-    "metadata" JSONB,
-    "isGoing" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "MatchedSuggestion_pkey" PRIMARY KEY ("id")
-);
-
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE INDEX "ActivityHistory_userId_createdAt_idx" ON "ActivityHistory"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CalendarActivity_userId_dueDate_idx" ON "CalendarActivity"("userId", "dueDate");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserPreferences_userId_key" ON "UserPreferences"("userId");
@@ -160,19 +163,13 @@ CREATE UNIQUE INDEX "VerificationToken_token_key" ON "VerificationToken"("token"
 CREATE UNIQUE INDEX "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Event_sourceId_key" ON "Event"("sourceId");
-
--- CreateIndex
-CREATE INDEX "Event_startTime_idx" ON "Event"("startTime");
-
--- CreateIndex
 CREATE INDEX "GeneralSuggestion_userId_createdAt_idx" ON "GeneralSuggestion"("userId", "createdAt");
 
--- CreateIndex
-CREATE INDEX "MatchedSuggestion_userId_idx" ON "MatchedSuggestion"("userId");
+-- AddForeignKey
+ALTER TABLE "ActivityHistory" ADD CONSTRAINT "ActivityHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- CreateIndex
-CREATE UNIQUE INDEX "MatchedSuggestion_userId_eventId_key" ON "MatchedSuggestion"("userId", "eventId");
+-- AddForeignKey
+ALTER TABLE "CalendarActivity" ADD CONSTRAINT "CalendarActivity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserPreferences" ADD CONSTRAINT "UserPreferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -194,9 +191,3 @@ ALTER TABLE "Match" ADD CONSTRAINT "Match_relativeId_fkey" FOREIGN KEY ("relativ
 
 -- AddForeignKey
 ALTER TABLE "GeneralSuggestion" ADD CONSTRAINT "GeneralSuggestion_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MatchedSuggestion" ADD CONSTRAINT "MatchedSuggestion_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MatchedSuggestion" ADD CONSTRAINT "MatchedSuggestion_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
